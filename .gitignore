@@ -1,4 +1,13 @@
+# macOS
 .DS_Store
-.env
-.env.*
-*.log
+Thumbs.db
+
+# Debug / temp files
+test-images.php
+
+# Editor
+.idea/
+.vscode/
+.cursor/
+*.swp
+*.swo
