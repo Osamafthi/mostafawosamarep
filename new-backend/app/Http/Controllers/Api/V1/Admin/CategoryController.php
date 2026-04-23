@@ -8,6 +8,7 @@ use App\Http\Requests\V1\Category\UpdateCategoryRequest;
 use App\Http\Resources\V1\CategoryResource;
 use App\Models\Category;
 use App\Support\ApiResponse;
+use App\Support\CatalogCache;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 
@@ -26,6 +27,9 @@ class CategoryController extends Controller
     {
         $category = Category::create($request->validated());
 
+        CatalogCache::flush('categories');
+        CatalogCache::flush('products');
+
         return ApiResponse::created((new CategoryResource($category))->resolve());
     }
 
@@ -39,6 +43,9 @@ class CategoryController extends Controller
 
         $category->fill($request->validated());
         $category->save();
+
+        CatalogCache::flush('categories');
+        CatalogCache::flush('products');
 
         return ApiResponse::success((new CategoryResource($category))->resolve());
     }
@@ -59,6 +66,9 @@ class CategoryController extends Controller
                 409
             );
         }
+
+        CatalogCache::flush('categories');
+        CatalogCache::flush('products');
 
         return ApiResponse::success(['deleted' => true]);
     }

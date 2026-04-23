@@ -4,6 +4,7 @@ $active   = 'orders';
 $apiJsVersion    = file_exists(__DIR__ . '/../../assets/js/api.js')    ? (string) filemtime(__DIR__ . '/../../assets/js/api.js')    : '1';
 $authJsVersion   = file_exists(__DIR__ . '/../../assets/js/auth.js')   ? (string) filemtime(__DIR__ . '/../../assets/js/auth.js')   : '1';
 $ordersJsVersion = file_exists(__DIR__ . '/../../assets/js/orders.js') ? (string) filemtime(__DIR__ . '/../../assets/js/orders.js') : '1';
+$adminOrdersCssVersion = file_exists(__DIR__ . '/../../assets/css/admin-orders.css') ? (string) filemtime(__DIR__ . '/../../assets/css/admin-orders.css') : '1';
 $paginationJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination.js') ? (string) filemtime(__DIR__ . '/../../assets/js/pagination.js') : '1';
 ?>
 <!DOCTYPE html>
@@ -13,7 +14,7 @@ $paginationJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination.js') ?
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — Orders</title>
 <link rel="stylesheet" href="<?= $basePath ?>/assets/css/admin.css">
-<link rel="stylesheet" href="<?= $basePath ?>/assets/css/orders.css">
+<link rel="stylesheet" href="<?= $basePath ?>/assets/css/admin-orders.css?v=<?= $adminOrdersCssVersion ?>">
 </head>
 <body>
     <div class="layout">
@@ -67,7 +68,6 @@ $paginationJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination.js') ?
                 <button class="tab is-active" data-status="">All</button>
                 <button class="tab" data-status="pending">Pending</button>
                 <button class="tab" data-status="processing">Processing</button>
-                <button class="tab" data-status="shipped">Shipped</button>
                 <button class="tab" data-status="delivered">Delivered</button>
                 <button class="tab" data-status="cancelled">Cancelled</button>
             </section>
@@ -162,7 +162,6 @@ $paginationJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination.js') ?
                             <select id="dStatus">
                                 <option value="pending">Pending</option>
                                 <option value="processing">Processing</option>
-                                <option value="shipped">Shipped</option>
                                 <option value="delivered">Delivered</option>
                                 <option value="cancelled">Cancelled</option>
                             </select>

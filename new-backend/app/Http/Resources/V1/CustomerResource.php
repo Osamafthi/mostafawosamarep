@@ -14,6 +14,8 @@ class CustomerResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
+            'default_shipping_address' => $this->default_shipping_address,
+            'email_verified' => (bool) $this->email_verified_at,
             'created_at' => optional($this->created_at)->toIso8601String(),
             'updated_at' => optional($this->updated_at)->toIso8601String(),
         ];

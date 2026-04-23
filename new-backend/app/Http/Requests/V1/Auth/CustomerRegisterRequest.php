@@ -18,6 +18,7 @@ class CustomerRegisterRequest extends FormRequest
             'email' => ['required', 'email', 'max:190', 'unique:customers,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'phone' => ['nullable', 'string', 'max:40'],
+            'default_shipping_address' => ['nullable', 'string', 'min:5', 'max:500'],
         ];
     }
 }

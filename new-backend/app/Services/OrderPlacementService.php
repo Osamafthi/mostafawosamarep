@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Support\CatalogCache;
 use Illuminate\Support\Facades\DB;
 
 class OrderPlacementService
@@ -86,6 +87,10 @@ class OrderPlacementService
 
             return $order->fresh(['items.product']);
         });
+
+        // Stock changed on one or more products — invalidate cached catalog
+        // reads so shoppers see accurate availability during sale rushes.
+        CatalogCache::flush('products');
 
         SendOrderConfirmationToCustomer::dispatch($order->id);
         SendOrderNotificationToAdmin::dispatch($order->id);

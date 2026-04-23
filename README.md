@@ -73,14 +73,15 @@ Health & Beauty, Computing). Change the admin password after first login.
 
 Key `.env` values:
 
-| Key                   | Default                  | Purpose                                   |
-| --------------------- | ------------------------ | ----------------------------------------- |
-| `DB_CONNECTION`       | `mysql`                  | Primary datastore                         |
-| `QUEUE_CONNECTION`    | `database`               | Drives the `jobs` table                   |
-| `FILESYSTEM_DISK`     | `public`                 | Uploads go to `storage/app/public`        |
-| `MAIL_MAILER`         | `log`                    | Dev: writes emails to `storage/logs`      |
-| `MAIL_ADMIN_ADDRESS`  | `admin@ecommerce.local`  | Recipient of "new order" admin emails     |
-| `SANCTUM_STATEFUL_DOMAINS` | *(empty)*           | Pure token mode — no session fallback     |
+| Key                   | Default                          | Purpose                                   |
+| --------------------- | -------------------------------- | ----------------------------------------- |
+| `DB_CONNECTION`       | `mysql`                          | Primary datastore                         |
+| `QUEUE_CONNECTION`    | `database`                       | Drives the `jobs` table                   |
+| `FILESYSTEM_DISK`     | `public`                         | Uploads go to `storage/app/public`        |
+| `MAIL_MAILER`         | `log`                            | Dev: writes emails to `storage/logs`      |
+| `MAIL_ADMIN_ADDRESS`  | `admin@ecommerce.local`          | Recipient of "new order" admin emails     |
+| `FRONTEND_URL`        | `http://localhost/mostafawosama` | Storefront base URL the API links back to (email verification redirect) |
+| `SANCTUM_STATEFUL_DOMAINS` | *(empty)*                   | Pure token mode — no session fallback     |
 
 ### Authentication (Sanctum abilities)
 
@@ -114,7 +115,7 @@ curl -X POST http://localhost:8000/api/v1/auth/admin/login \
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/customer/register \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Jane","email":"jane@example.com","password":"secret123","password_confirmation":"secret123"}'
+  -d '{"name":"Jane","email":"jane@example.com","password":"secret123","password_confirmation":"secret123","default_shipping_address":"Cairo, Egypt"}'
 ```
 
 ```bash
@@ -123,28 +124,41 @@ curl -X POST http://localhost:8000/api/v1/auth/customer/login \
   -d '{"email":"jane@example.com","password":"secret123"}'
 ```
 
+After registration, a `SendCustomerEmailVerification` job is queued to
+deliver Laravel's built-in `VerifyEmail` notification. The signed link
+points at `GET /api/v1/auth/customer/verify-email/{id}/{hash}`
+(named `verification.verify`) which flips `email_verified_at` and
+redirects the browser to `FRONTEND_URL/views/customer/verify-email.php`.
+An authenticated customer can request a resend via
+`POST /api/v1/customer/email/verification-notification` (throttled to
+6 requests per minute). The gate is **soft** — unverified customers
+can still log in and place orders; the storefront just shows a banner
+until they confirm.
+
 ### Endpoints (base: `/api/v1`)
 
 #### Public
 
-| Method | Path                              | Notes                                       |
-| ------ | --------------------------------- | ------------------------------------------- |
-| POST   | `/auth/admin/login`               | `{ email, password }` → admin token         |
-| POST   | `/auth/customer/register`         | `{ name, email, password, password_confirmation, phone? }` |
-| POST   | `/auth/customer/login`            | `{ email, password }` → customer token      |
-| GET    | `/products`                       | `?q=&category_id=&status=&page=&limit=`     |
-| GET    | `/products/{id}`                  |                                             |
-| GET    | `/categories`                     |                                             |
-| POST   | `/orders`                         | Guest checkout (or customer-linked if a `customer`-ability token is present) |
+| Method | Path                                              | Notes                                       |
+| ------ | ------------------------------------------------- | ------------------------------------------- |
+| POST   | `/auth/admin/login`                               | `{ email, password }` → admin token         |
+| POST   | `/auth/customer/register`                         | `{ name, email, password, password_confirmation, phone?, default_shipping_address? }` — queues a verification email |
+| POST   | `/auth/customer/login`                            | `{ email, password }` → customer token      |
+| GET    | `/auth/customer/verify-email/{id}/{hash}`         | Signed link clicked from the verification email; marks the customer verified and redirects to `FRONTEND_URL` |
+| GET    | `/products`                                       | `?q=&category_id=&status=&page=&limit=`     |
+| GET    | `/products/{id}`                                  |                                             |
+| GET    | `/categories`                                     |                                             |
+| POST   | `/orders`                                         | Guest checkout (or customer-linked if a `customer`-ability token is present) |
 
 #### Customer (`Authorization: Bearer <customer token>`)
 
-| Method | Path                    |
-| ------ | ----------------------- |
-| POST   | `/customer/logout`      |
-| GET    | `/customer/me`          |
-| GET    | `/customer/orders`      |
-| GET    | `/customer/orders/{id}` |
+| Method | Path                                         | Notes |
+| ------ | -------------------------------------------- | ----- |
+| POST   | `/customer/logout`                           |       |
+| POST   | `/customer/email/verification-notification`  | Resend the email-verification link (throttle: 6/min) |
+| GET    | `/customer/me`                               | Profile (name, email, phone, `default_shipping_address`, `email_verified`) |
+| GET    | `/customer/orders`                           | `?page=&limit=&status=&window=` where `window` is `6m` (default), `1y`, or `all` |
+| GET    | `/customer/orders/{id}`                      |       |
 
 #### Admin (`Authorization: Bearer <admin token>`)
 
@@ -249,13 +263,16 @@ re-encode and resize the stored file in the background.
 All business-critical side effects are queued so the API responds fast and
 is crash-resilient:
 
-| Job                                 | Dispatched from              | Purpose                               |
-| ----------------------------------- | ---------------------------- | ------------------------------------- |
-| `SendOrderConfirmationToCustomer`   | `OrderPlacementService`      | Customer-facing order confirmation    |
-| `SendOrderNotificationToAdmin`      | `OrderPlacementService`      | Admin-facing new-order notification   |
-| `OptimizeProductImage`              | `Admin\UploadController`     | Downscale + re-encode uploaded images |
+| Job                                 | Dispatched from                           | Purpose                                                              |
+| ----------------------------------- | ----------------------------------------- | -------------------------------------------------------------------- |
+| `SendOrderConfirmationToCustomer`   | `OrderPlacementService`                   | Customer-facing order confirmation                                   |
+| `SendOrderNotificationToAdmin`      | `OrderPlacementService`                   | Admin-facing new-order notification                                  |
+| `OptimizeProductImage`              | `Admin\UploadController`                  | Downscale + re-encode uploaded images                                |
+| `SendCustomerEmailVerification`     | `CustomerAuthController@register/resend`  | Deliver Laravel's `VerifyEmail` notification to the signup address  |
 
-Run a worker with `php artisan queue:work database`.
+Run a worker with `php artisan queue:work database`. Without a worker
+the verification email stays in the `jobs` table and the customer
+never receives the confirmation link.
 
 ### Storage
 
@@ -515,8 +532,28 @@ render on the admin SPA. The `ProductsSeeder` above already does.
 
 ---
 
-## Storefront (`index.php`)
+## Storefront (`index.php` + `views/customer/`)
 
-The root `index.php` is a static Tailwind-CDN landing page. It currently
-serves as a simple public face; wiring it to the Laravel API (products,
-categories, cart) is the recommended next step.
+The root `index.php` includes `views/customer/home.php` — the storefront
+home page. All customer-facing pages live under `views/customer/` and
+share `partials/header.php`, `partials/footer.php`, `partials/bootstrap.php`.
+JS talks to the Laravel API (`localhost:8000/api/v1` by default) through
+the `CustomerApi` wrapper in [assets/js/customer-api.js](assets/js/customer-api.js),
+which reads/writes a single `customerToken` item in `localStorage`.
+
+| Page                                     | Script                                         | Role                                           |
+| ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------- |
+| `/index.php`                             | `home.js`                                      | Storefront landing                             |
+| `views/customer/search.php`              | `search.js`                                    | All products / search                          |
+| `views/customer/category.php`            | `category.js`                                  | Single category grid                           |
+| `views/customer/product.php`             | `product.js`                                   | Product detail                                 |
+| `views/customer/cart.php`                | `cart-page.js`                                 | Cart                                           |
+| `views/customer/checkout.php`            | `checkout.js`                                  | Checkout (prefills from `GET /customer/me` when signed in) |
+| `views/customer/login.php`               | `auth.js`                                      | Sign in                                        |
+| `views/customer/register.php`            | `auth.js`                                      | Create account (optional default address)      |
+| `views/customer/orders.php`              | `my-orders.js`                                 | My Orders — tabs by status, `Last 6 months / Last year / All time` dropdown, paginated |
+| `views/customer/verify-email.php`        | *(server-rendered)*                            | Landing page hit after clicking the email-verification link |
+
+My Orders defaults to the last 6 months so a returning customer with
+years of history doesn't get overwhelmed on first load — the dropdown
+switches to `1y` / `all` when needed.

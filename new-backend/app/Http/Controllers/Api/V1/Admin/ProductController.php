@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Services\ProductGalleryService;
 use App\Support\ApiResponse;
+use App\Support\CatalogCache;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -76,6 +77,8 @@ class ProductController extends Controller
 
         $product->load(['category', 'images']);
 
+        CatalogCache::flush('products');
+
         return ApiResponse::created((new ProductResource($product))->resolve());
     }
 
@@ -108,6 +111,8 @@ class ProductController extends Controller
 
         $product->load(['category', 'images']);
 
+        CatalogCache::flush('products');
+
         return ApiResponse::success((new ProductResource($product))->resolve());
     }
 
@@ -127,6 +132,8 @@ class ProductController extends Controller
                 409
             );
         }
+
+        CatalogCache::flush('products');
 
         return ApiResponse::success(['deleted' => true]);
     }

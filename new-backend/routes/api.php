@@ -29,6 +29,13 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/customer/register', [CustomerAuthController::class, 'register']);
     Route::post('auth/customer/login', [CustomerAuthController::class, 'login']);
 
+    // Public email verification link (signed; clicked from mailbox).
+    // Named `verification.verify` because Laravel's built-in VerifyEmail
+    // notification builds its signed URL via that route name.
+    Route::get('auth/customer/verify-email/{id}/{hash}', [CustomerAuthController::class, 'verify'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+
     // Public catalog
     Route::get('products', [PublicProductController::class, 'index']);
     Route::get('products/{id}', [PublicProductController::class, 'show'])->whereNumber('id');
@@ -42,6 +49,8 @@ Route::prefix('v1')->group(function () {
         ->prefix('customer')
         ->group(function () {
             Route::post('logout', [CustomerAuthController::class, 'logout']);
+            Route::post('email/verification-notification', [CustomerAuthController::class, 'resendVerification'])
+                ->middleware('throttle:6,1');
             Route::get('me', [ProfileController::class, 'me']);
             Route::get('orders', [ProfileController::class, 'orders']);
             Route::get('orders/{id}', [ProfileController::class, 'showOrder'])->whereNumber('id');

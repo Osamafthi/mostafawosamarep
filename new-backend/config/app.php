@@ -56,6 +56,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Storefront Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | Base URL of the customer-facing PHP storefront (served by XAMPP on a
+    | different port / virtualhost than the Laravel API). Used when the
+    | backend needs to build a link back into the storefront — e.g. the
+    | post-verification redirect in CustomerAuthController@verify.
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost/mostafawosama'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

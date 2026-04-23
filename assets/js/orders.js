@@ -118,6 +118,7 @@
         state.openId = id;
         $('#drawerError').hidden = true;
         $('#orderDrawer').hidden = false;
+        $('#orderDrawer').classList.add('is-open');
         try {
             const o = await Api.get('/admin/orders/' + id);
             $('#dOrderNumber').textContent = o.order_number;
@@ -145,6 +146,7 @@
     }
 
     function closeDrawer() {
+        $('#orderDrawer').classList.remove('is-open');
         $('#orderDrawer').hidden = true;
         state.openId = null;
     }

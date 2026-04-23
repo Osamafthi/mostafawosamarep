@@ -1,0 +1,90 @@
+/* =========================================================================
+   Auth pages (login / register / verify-email)
+   Shares variables and controls (.btn, .field, .form-error, .form-ok)
+   with customer.css; this file only adds layout specific to the
+   centered single-column auth card.
+   ========================================================================= */
+
+.auth-card {
+    max-width: 460px;
+    margin: 24px auto;
+    background: #fff;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 32px 28px;
+}
+
+.auth-card--wide {
+    max-width: 560px;
+}
+
+.auth-card__title {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+.auth-card__lead {
+    margin: 0 0 22px;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.auth-form .field:last-of-type {
+    margin-bottom: 18px;
+}
+
+.auth-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.auth-grid .field {
+    margin-bottom: 14px;
+}
+
+.field__hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.auth-card__switch {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-2);
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+}
+.auth-card__switch a {
+    color: var(--primary-700);
+    font-weight: 700;
+}
+.auth-card__switch a:hover {
+    text-decoration: underline;
+}
+
+.auth-card__actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+.auth-card__actions .btn {
+    flex: 1 1 auto;
+    min-width: 140px;
+}
+
+@media (max-width: 560px) {
+    .auth-card {
+        padding: 22px 18px;
+        margin: 12px auto;
+    }
+    .auth-grid {
+        grid-template-columns: 1fr;
+    }
+}
