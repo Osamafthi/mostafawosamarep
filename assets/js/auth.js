@@ -2,15 +2,22 @@
  * auth.js — shared auth bootstrap used by:
  *   1) Admin pages (`views/admin/*`) through a global `window.Auth`.
  *   2) Customer login/register pages (`views/customer/login.php` / register.php).
+ *   3) Delivery pages (`views/delivery/*`) through `window.Auth.guardDeliveryPage`.
  */
 (function () {
     'use strict';
 
     const path = window.location.pathname || '';
     const isAdminPath = /\/views\/admin\//.test(path);
+    const isDeliveryPath = /\/views\/delivery\//.test(path);
 
     if (isAdminPath) {
         bootAdminAuth();
+        return;
+    }
+
+    if (isDeliveryPath) {
+        bootDeliveryAuth();
         return;
     }
 
@@ -42,15 +49,39 @@
             }
         }
 
+        function revealBody() {
+            // Pages that opt in to the "verify before render" guard set
+            // <body data-guarded>. We reveal it only after /admin/me
+            // confirms the token actually belongs to an admin.
+            if (document.body) document.body.classList.add('auth-ready');
+        }
+
         function guardAdminPage() {
             const token = Api && typeof Api.getToken === 'function'
                 ? Api.getToken()
                 : localStorage.getItem('adminToken');
-            const allowed = !!token;
-            if (!allowed) {
+            if (!token) {
                 forceLoginRedirect();
+                return false;
             }
-            return allowed;
+
+            // Defense in depth: the API client already kicks 401/403
+            // back to login, but we issue an explicit /admin/me round
+            // trip up front so a tampered token can never paint the
+            // admin UI before being rejected.
+            if (Api && typeof Api.get === 'function') {
+                Api.get('/admin/me')
+                    .then(revealBody)
+                    .catch(() => {
+                        if (Api && typeof Api.setToken === 'function') {
+                            Api.setToken(null);
+                        }
+                        forceLoginRedirect();
+                    });
+            } else {
+                revealBody();
+            }
+            return true;
         }
 
         function bindLogout(selector) {
@@ -115,6 +146,11 @@
     }
 
     function bootCustomerAuth() {
+        // Expose customer-specific page guard before the auth-card check
+        // so protected pages (orders.php, etc) can call it even though
+        // they don't render an [data-auth-root] login/register form.
+        installCustomerGuards();
+
         const root = document.querySelector('[data-auth-root]');
         if (!root || !window.UI || !window.CustomerApi) return;
 
@@ -297,5 +333,200 @@
 
         if (mode === 'register') renderRegister();
         else                     renderLogin();
+    }
+
+    function installCustomerGuards() {
+        const Api = window.CustomerApi;
+        const cfg = (Api && Api.config) || window.APP_CONFIG || { basePath: '/mostafawosama' };
+
+        function buildPath(p) {
+            const base = (cfg.basePath || '').replace(/\/+$/, '');
+            const rel  = String(p || '').replace(/^\/+/, '');
+            return base + '/' + rel;
+        }
+
+        function loginRedirect() {
+            const here = (location.pathname || '/') + (location.search || '');
+            location.replace(
+                buildPath('/views/customer/login.php') +
+                '?redirect=' + encodeURIComponent(here)
+            );
+        }
+
+        function revealBody() {
+            if (document.body) document.body.classList.add('auth-ready');
+        }
+
+        function guardCustomerPage() {
+            const token = Api && typeof Api.getToken === 'function'
+                ? Api.getToken()
+                : localStorage.getItem('customerToken');
+            if (!token) {
+                loginRedirect();
+                return false;
+            }
+
+            if (Api && typeof Api.get === 'function') {
+                Api.get('/customer/me', { auth: true })
+                    .then(revealBody)
+                    .catch(() => {
+                        // The customer-api client already cleared the
+                        // token on 401/403; redirect now so the page
+                        // never finishes painting.
+                        if (Api && typeof Api.setToken === 'function') {
+                            Api.setToken(null);
+                        }
+                        loginRedirect();
+                    });
+            } else {
+                revealBody();
+            }
+            return true;
+        }
+
+        const existing = window.Auth || {};
+        window.Auth = Object.assign({}, existing, { guardCustomerPage });
+    }
+
+    function bootDeliveryAuth() {
+        const Api = window.DeliveryApi;
+        const cfg = (Api && Api.config) || window.APP_CONFIG || { basePath: '/mostafawosama' };
+
+        function formatError(err) {
+            if (!err) return 'Something went wrong';
+            if (typeof err === 'string') return err;
+            if (err.error) return err.error;
+            if (err.message) return err.message;
+            if (err.errors && typeof err.errors === 'object') {
+                const first = Object.values(err.errors)[0];
+                if (Array.isArray(first) && first.length) return first[0];
+            }
+            return 'Something went wrong';
+        }
+
+        function forceLoginRedirect() {
+            const loginPath = cfg.basePath + '/views/delivery/login.php';
+            if (!path.endsWith('/views/delivery/login.php')) {
+                // Blank out the body before redirecting so a tampered
+                // token can never flash protected content.
+                document.body.innerHTML = '';
+                window.location.replace(loginPath);
+            }
+        }
+
+        function revealBody() {
+            // Same pattern as the admin guard: pages mark themselves
+            // with <body data-guarded> and stay invisible until the
+            // courier identity is confirmed.
+            if (document.body) document.body.classList.add('auth-ready');
+        }
+
+        function guardDeliveryPage() {
+            const token = Api && typeof Api.getToken === 'function'
+                ? Api.getToken()
+                : localStorage.getItem('deliveryToken');
+            if (!token) {
+                forceLoginRedirect();
+                return false;
+            }
+
+            if (Api && typeof Api.get === 'function') {
+                Api.get('/delivery/me')
+                    .then(revealBody)
+                    .catch(() => {
+                        if (Api && typeof Api.setToken === 'function') {
+                            Api.setToken(null);
+                        }
+                        forceLoginRedirect();
+                    });
+            } else {
+                revealBody();
+            }
+            return true;
+        }
+
+        function bindLogout(selector) {
+            const btn = document.querySelector(selector);
+            if (!btn) return;
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                try {
+                    if (Api && typeof Api.post === 'function') {
+                        await Api.post('/delivery/logout', null);
+                    }
+                } catch (_) {
+                    // Ignore network/API failures so logout always
+                    // clears the local token.
+                }
+                if (Api && typeof Api.setToken === 'function') {
+                    Api.setToken(null);
+                } else {
+                    localStorage.removeItem('deliveryToken');
+                }
+                window.location.replace(cfg.basePath + '/views/delivery/login.php');
+            });
+        }
+
+        window.Auth = { guardDeliveryPage, bindLogout, formatError };
+
+        // Login page wiring — only runs on /views/delivery/login.php.
+        if (!path.endsWith('/views/delivery/login.php')) return;
+
+        const root = document.querySelector('[data-auth-root="delivery-login"]');
+        if (!root || !Api) return;
+
+        if (Api.getToken && Api.getToken()) {
+            window.location.replace(cfg.basePath + '/views/delivery/orders.php');
+            return;
+        }
+
+        root.innerHTML = `
+            <div class="auth-card">
+                <h1 class="auth-card__title">Courier sign in</h1>
+                <p class="auth-card__lead">Use the credentials your admin gave you.</p>
+
+                <form class="auth-form" id="deliveryLoginForm" novalidate>
+                    <div class="form-error" id="deliveryFormError" hidden></div>
+                    <div class="field">
+                        <label class="field__label" for="d-email">Email</label>
+                        <input id="d-email" name="email" type="email" required maxlength="190" autocomplete="email" autofocus>
+                    </div>
+                    <div class="field">
+                        <label class="field__label" for="d-password">Password</label>
+                        <input id="d-password" name="password" type="password" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn--primary btn--lg btn--block" id="deliverySubmitBtn">Sign in</button>
+                </form>
+            </div>
+        `;
+
+        const form  = document.getElementById('deliveryLoginForm');
+        const error = document.getElementById('deliveryFormError');
+        const btn   = document.getElementById('deliverySubmitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            error.hidden = true;
+            btn.disabled = true;
+            btn.textContent = 'Signing in…';
+
+            const email = (document.getElementById('d-email').value || '').trim();
+            const password = (document.getElementById('d-password').value || '').trim();
+
+            try {
+                const res = await Api.post('/auth/delivery/login', { email, password }, { auth: false });
+                if (!res || !res.token) {
+                    throw new Error('Unexpected response from server');
+                }
+                Api.setToken(res.token);
+                window.location.replace(cfg.basePath + '/views/delivery/orders.php');
+            } catch (err) {
+                error.textContent = formatError(err);
+                error.hidden = false;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Sign in';
+            }
+        });
     }
 })();

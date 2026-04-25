@@ -15,8 +15,9 @@ $paginationJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination.js') ?
 <title>Admin — Orders</title>
 <link rel="stylesheet" href="<?= $basePath ?>/assets/css/admin.css">
 <link rel="stylesheet" href="<?= $basePath ?>/assets/css/admin-orders.css?v=<?= $adminOrdersCssVersion ?>">
+<style>body[data-guarded]:not(.auth-ready){visibility:hidden}</style>
 </head>
-<body>
+<body data-guarded>
     <div class="layout">
         <aside class="sidebar">
             <div class="sidebar__brand">
@@ -32,6 +33,9 @@ $paginationJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination.js') ?
                 </a>
                 <a class="nav-link is-active" href="<?= $basePath ?>/views/admin/orders.php">
                     <span class="nav-link__icon">O</span> Orders
+                </a>
+                <a class="nav-link" href="<?= $basePath ?>/views/admin/delivery-persons.php">
+                    <span class="nav-link__icon">D</span> Delivery
                 </a>
                 <a class="nav-link" href="<?= $basePath ?>/views/admin/admins.php">
                     <span class="nav-link__icon">A</span> Admins
@@ -68,6 +72,7 @@ $paginationJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination.js') ?
                 <button class="tab is-active" data-status="">All</button>
                 <button class="tab" data-status="pending">Pending</button>
                 <button class="tab" data-status="processing">Processing</button>
+                <button class="tab" data-status="shipped">Out for delivery</button>
                 <button class="tab" data-status="delivered">Delivered</button>
                 <button class="tab" data-status="cancelled">Cancelled</button>
             </section>
@@ -130,7 +135,27 @@ $paginationJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination.js') ?
                         <dt>Email</dt><dd id="dEmail">—</dd>
                         <dt>Phone</dt><dd id="dPhone">—</dd>
                         <dt>Shipping</dt><dd id="dAddress">—</dd>
+                        <dt>Location</dt><dd id="dLocation">—</dd>
                     </dl>
+                </section>
+
+                <section class="card">
+                    <h3>Delivery</h3>
+                    <dl class="defs">
+                        <dt>Assigned to</dt><dd id="dAssignee">—</dd>
+                    </dl>
+                    <div class="manage-grid">
+                        <label class="field">
+                            <span class="field__label">Reassign courier</span>
+                            <select id="dAssigneeSelect">
+                                <option value="">— Unassigned —</option>
+                            </select>
+                        </label>
+                        <div class="field" style="align-self:end;">
+                            <button class="btn btn--ghost" id="btnReassign" type="button">Update assignee</button>
+                        </div>
+                    </div>
+                    <div id="assigneeError" class="form-error" hidden></div>
                 </section>
 
                 <section class="card">
@@ -162,6 +187,7 @@ $paginationJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination.js') ?
                             <select id="dStatus">
                                 <option value="pending">Pending</option>
                                 <option value="processing">Processing</option>
+                                <option value="shipped">Out for delivery</option>
                                 <option value="delivered">Delivered</option>
                                 <option value="cancelled">Cancelled</option>
                             </select>

@@ -7,19 +7,26 @@ use App\Http\Requests\V1\Order\UpdateOrderStatusRequest;
 use App\Http\Requests\V1\Order\UpdatePaymentStatusRequest;
 use App\Http\Resources\V1\OrderResource;
 use App\Http\Resources\V1\PaginatedCollection;
+use App\Models\DeliveryPerson;
 use App\Models\Order;
+use App\Services\OrderStatusTransitionService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
+    public function __construct(private OrderStatusTransitionService $transitions)
+    {
+    }
+
     public function index(Request $request): JsonResponse
     {
         $page = max(1, (int) $request->query('page', 1));
         $limit = min(100, max(1, (int) $request->query('limit', 20)));
 
-        $query = Order::query();
+        $query = Order::query()->with('deliveryPerson');
 
         if ($q = trim((string) $request->query('q', ''))) {
             $query->where(function ($sub) use ($q) {
@@ -46,7 +53,7 @@ class OrderController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $order = Order::query()->with(['items.product'])->find($id);
+        $order = Order::query()->with(['items.product', 'deliveryPerson'])->find($id);
 
         if (! $order) {
             return ApiResponse::notFound('Order not found');
@@ -63,10 +70,42 @@ class OrderController extends Controller
             return ApiResponse::notFound('Order not found');
         }
 
-        $order->status = $request->validated()['status'];
+        $this->transitions->transition(
+            $order,
+            $request->validated()['status'],
+            OrderStatusTransitionService::ACTOR_ADMIN,
+        );
+
+        $order->load(['items.product', 'deliveryPerson']);
+
+        return ApiResponse::success((new OrderResource($order))->resolve());
+    }
+
+    /**
+     * Assign or reassign the delivery person responsible for an order.
+     * Pass `delivery_person_id: null` to detach (returns the order to the
+     * unassigned pool so admin can pick someone else later).
+     */
+    public function assign(Request $request, int $id): JsonResponse
+    {
+        $order = Order::query()->find($id);
+
+        if (! $order) {
+            return ApiResponse::notFound('Order not found');
+        }
+
+        $data = $request->validate([
+            'delivery_person_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('delivery_persons', 'id'),
+            ],
+        ]);
+
+        $order->delivery_person_id = $data['delivery_person_id'] ?? null;
         $order->save();
 
-        $order->load('items.product');
+        $order->load(['items.product', 'deliveryPerson']);
 
         return ApiResponse::success((new OrderResource($order))->resolve());
     }

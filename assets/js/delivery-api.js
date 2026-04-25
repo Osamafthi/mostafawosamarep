@@ -1,10 +1,10 @@
 /**
- * customer-api.js — tiny fetch wrapper for the customer storefront.
+ * delivery-api.js — fetch wrapper for the courier app.
  *
- * Mirrors the shape of assets/js/api.js but is intentionally separate so
- * that the public/customer layer never reads or writes the admin token.
- * Unlike the admin wrapper this does NOT redirect to a login page on 401
- * (the storefront allows guest browsing and guest checkout).
+ * Mirrors api.js (admin) — separate STORAGE_KEY ('deliveryToken') and a
+ * redirect-on-401 to the delivery login page so a tampered or expired
+ * token can't be used to render the dashboard. Strictly never reads or
+ * writes the admin / customer token keys.
  */
 (function (global) {
     'use strict';
@@ -13,7 +13,7 @@
         apiBase:  'http://localhost:8000/api/v1',
         basePath: '/mostafawosama',
     };
-    const STORAGE_KEY = 'customerToken';
+    const STORAGE_KEY = 'deliveryToken';
 
     function getToken() {
         try { return localStorage.getItem(STORAGE_KEY); } catch (_) { return null; }
@@ -26,7 +26,7 @@
     }
 
     async function request(path, opts = {}) {
-        const { method = 'GET', body, isForm = false, auth = false, query } = opts;
+        const { method = 'GET', body, isForm = false, auth = true, query } = opts;
 
         let url = cfg.apiBase + path;
         if (query && typeof query === 'object') {
@@ -61,15 +61,15 @@
         const text = await res.text();
         try { json = text ? JSON.parse(text) : null; } catch (_) { /* non-json */ }
 
-        // 401 = no/expired token, 403 = token doesn't carry the
-        // `customer` ability (eg someone pasted an admin or delivery
-        // token into customerToken). Both must clear the local token
-        // so subsequent calls don't keep trying it. We do NOT redirect
-        // here because the storefront supports guest browsing — the
-        // page-level guard (Auth.guardCustomerPage) handles the bounce
-        // when sign-in is actually required.
         if (auth && (res.status === 401 || res.status === 403)) {
+            // The token is missing, expired, or doesn't carry the
+            // `delivery` ability. Drop it so the user is forced through
+            // the login page.
             setToken(null);
+            const loginPath = cfg.basePath + '/views/delivery/login.php';
+            if (!location.pathname.endsWith('/views/delivery/login.php')) {
+                location.replace(loginPath);
+            }
         }
 
         if (!res.ok) {
@@ -91,7 +91,7 @@
         return 'Something went wrong';
     }
 
-    const CustomerApi = {
+    const DeliveryApi = {
         config: cfg,
         getToken,
         setToken,
@@ -104,5 +104,5 @@
         formatError,
     };
 
-    global.CustomerApi = CustomerApi;
+    global.DeliveryApi = DeliveryApi;
 })(window);

@@ -2,6 +2,7 @@
 
 use App\Models\Admin;
 use App\Models\Customer;
+use App\Models\DeliveryPerson;
 
 return [
 
@@ -38,6 +39,11 @@ return [
             'driver' => 'sanctum',
             'provider' => 'customers',
         ],
+
+        'delivery' => [
+            'driver' => 'sanctum',
+            'provider' => 'delivery_persons',
+        ],
     ],
 
     /*
@@ -55,6 +61,11 @@ return [
         'customers' => [
             'driver' => 'eloquent',
             'model' => Customer::class,
+        ],
+
+        'delivery_persons' => [
+            'driver' => 'eloquent',
+            'model' => DeliveryPerson::class,
         ],
     ],
 

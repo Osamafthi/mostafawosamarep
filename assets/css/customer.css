@@ -800,6 +800,42 @@ button { font-family: inherit; cursor: pointer; }
     margin-bottom: 12px;
 }
 
+/* Geolocation share block on the checkout form. Sits between the
+   shipping address textarea and the submit button. Optional — failures
+   degrade silently so the customer can still place the order. */
+.geo-share {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    margin-bottom: 18px;
+    background: var(--surface-alt);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+}
+.geo-share.is-shared {
+    background: var(--success-bg);
+    border-style: solid;
+    border-color: rgba(16,121,63,0.35);
+}
+.geo-share__copy { display: grid; gap: 4px; font-size: 13px; line-height: 1.45; }
+.geo-share__copy strong { font-size: 14px; font-weight: 800; color: var(--text); }
+.geo-share__copy span { color: var(--text-muted); }
+.geo-share__status {
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-soft);
+}
+.geo-share__status[data-kind="ok"] {
+    background: #fff;
+    border-color: rgba(16,121,63,0.35);
+    color: var(--success);
+    font-weight: 600;
+}
+.geo-share__status[data-kind="info"] { color: var(--text-muted); }
+
 .mini-items { display: grid; gap: 10px; margin-bottom: 12px; }
 .mini-item { display: grid; grid-template-columns: 48px 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
 .mini-item__img { width: 48px; height: 48px; border-radius: 6px; background: var(--surface-alt); overflow: hidden; }

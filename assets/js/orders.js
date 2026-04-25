@@ -7,7 +7,11 @@
         page: 1, limit: 20,
         q: '', status: '', paymentStatus: '',
         openId: null,
+        couriers: null,
+        couriersLoadedAt: 0,
     };
+
+    const COURIER_TTL_MS = 60 * 1000;
 
     const $ = (s) => document.querySelector(s);
 
@@ -106,21 +110,77 @@
             btn.addEventListener('click', () => openDrawer(Number(btn.dataset.id))));
     }
 
+    const STATUS_LABELS = {
+        pending:    'Pending',
+        processing: 'Processing',
+        shipped:    'Out for delivery',
+        delivered:  'Delivered',
+        cancelled:  'Cancelled',
+    };
+
     function statusBadge(s) {
-        return `<span class="badge badge--${esc(s)}">${esc(capitalize(s))}</span>`;
+        const label = STATUS_LABELS[s] || capitalize(s);
+        return `<span class="badge badge--${esc(s)}">${esc(label)}</span>`;
     }
     function paymentBadge(s) {
         return `<span class="badge badge--${esc(s)}">${esc(capitalize(s))}</span>`;
     }
     function capitalize(s) { return String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1); }
 
+    async function loadCouriers(force = false) {
+        const fresh = state.couriers && (Date.now() - state.couriersLoadedAt) < COURIER_TTL_MS;
+        if (fresh && !force) return state.couriers;
+        try {
+            const data = await Api.get('/admin/delivery-persons', { query: { active: 1 } });
+            state.couriers = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : []);
+            state.couriersLoadedAt = Date.now();
+        } catch (_) {
+            state.couriers = state.couriers || [];
+        }
+        return state.couriers;
+    }
+
+    function fillCourierSelect(currentId) {
+        const select = $('#dAssigneeSelect');
+        const list   = state.couriers || [];
+        select.innerHTML = '<option value="">— Unassigned —</option>'
+            + list.map(c => `<option value="${c.id}">${esc(c.name)}${c.is_active === false ? ' (inactive)' : ''}</option>`).join('');
+        select.value = currentId == null ? '' : String(currentId);
+    }
+
+    function renderLocation(loc) {
+        const cell = $('#dLocation');
+        if (!loc || !loc.maps_url) {
+            cell.textContent = '—';
+            return;
+        }
+        const label = loc.source === 'gps' ? 'Open precise location in Maps' : 'Open shipping address in Maps';
+        cell.innerHTML = `<a href="${esc(loc.maps_url)}" target="_blank" rel="noopener">${esc(label)}</a>`;
+    }
+
+    function renderAssignee(person) {
+        const cell = $('#dAssignee');
+        if (!person) {
+            cell.textContent = 'Unassigned';
+            return;
+        }
+        const phone = person.phone
+            ? ` · <a href="tel:${esc(person.phone)}">${esc(person.phone)}</a>`
+            : '';
+        cell.innerHTML = `<strong>${esc(person.name || '')}</strong>${phone}`;
+    }
+
     async function openDrawer(id) {
         state.openId = id;
         $('#drawerError').hidden = true;
+        $('#assigneeError').hidden = true;
         $('#orderDrawer').hidden = false;
         $('#orderDrawer').classList.add('is-open');
         try {
-            const o = await Api.get('/admin/orders/' + id);
+            const [o] = await Promise.all([
+                Api.get('/admin/orders/' + id),
+                loadCouriers(),
+            ]);
             $('#dOrderNumber').textContent = o.order_number;
             $('#dTitle').textContent       = 'Placed ' + fmtDate(o.created_at);
             $('#dName').textContent    = o.customer_name;
@@ -130,6 +190,10 @@
             $('#dStatus').value        = o.status;
             $('#dPayment').value       = o.payment_status;
             $('#dTotal').textContent   = fmtMoney(o.total);
+
+            renderLocation(o.customer_location);
+            renderAssignee(o.delivery_person);
+            fillCourierSelect(o.delivery_person ? o.delivery_person.id : null);
 
             $('#dItems').innerHTML = (o.items || []).map(it => `
                 <tr>
@@ -142,6 +206,31 @@
         } catch (e) {
             toast(Auth.formatError(e), true);
             closeDrawer();
+        }
+    }
+
+    async function reassignCourier() {
+        if (!state.openId) return;
+        const btn = $('#btnReassign');
+        const err = $('#assigneeError');
+        const raw = $('#dAssigneeSelect').value;
+        const payload = { delivery_person_id: raw === '' ? null : Number(raw) };
+
+        err.hidden = true;
+        btn.disabled = true;
+        btn.textContent = 'Updating…';
+        try {
+            const o = await Api.patch('/admin/orders/' + state.openId + '/assignee', payload);
+            renderAssignee(o.delivery_person);
+            fillCourierSelect(o.delivery_person ? o.delivery_person.id : null);
+            toast('Courier updated');
+            loadOrders();
+        } catch (e) {
+            err.textContent = Auth.formatError(e);
+            err.hidden = false;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Update assignee';
         }
     }
 
@@ -183,8 +272,9 @@
     }
 
     function bindUi() {
-        $('#btnRefresh').addEventListener('click', () => { loadOrders(); loadStats(); });
+        $('#btnRefresh').addEventListener('click', () => { loadOrders(); loadStats(); loadCouriers(true); });
         $('#btnUpdateOrder').addEventListener('click', saveOrder);
+        $('#btnReassign').addEventListener('click', reassignCourier);
         document.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', closeDrawer));
 
         $('#statusTabs').addEventListener('click', (e) => {

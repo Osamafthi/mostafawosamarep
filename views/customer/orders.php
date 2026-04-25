@@ -11,8 +11,9 @@ $pageTitle = 'My Orders — Mostafa & Osama';
     <link rel="stylesheet" href="<?= customerAsset($basePath, '/assets/css/customer.css') ?>">
     <link rel="stylesheet" href="<?= customerAsset($basePath, '/assets/css/auth.css') ?>">
     <link rel="stylesheet" href="<?= customerAsset($basePath, '/assets/css/orders.css') ?>">
+    <style>body[data-guarded]:not(.auth-ready){visibility:hidden}</style>
 </head>
-<body>
+<body data-guarded>
     <?php include __DIR__ . '/partials/header.php'; ?>
 
     <main class="container page">
@@ -61,6 +62,7 @@ $pageTitle = 'My Orders — Mostafa & Osama';
     <script src="<?= customerAsset($basePath, '/assets/js/customer-api.js') ?>"></script>
     <script src="<?= customerAsset($basePath, '/assets/js/cart.js') ?>"></script>
     <script src="<?= customerAsset($basePath, '/assets/js/customer-ui.js') ?>"></script>
+    <script src="<?= customerAsset($basePath, '/assets/js/auth.js') ?>"></script>
     <script src="<?= customerAsset($basePath, '/assets/js/pagination.js') ?>"></script>
     <script src="<?= customerAsset($basePath, '/assets/js/my-orders.js') ?>"></script>
 </body>

@@ -48,10 +48,14 @@
         const text = await res.text();
         try { json = text ? JSON.parse(text) : null; } catch (_) { /* non-json */ }
 
-        if (res.status === 401 && auth) {
+        // 401 = no/expired token, 403 = token without admin ability (eg
+        // someone pasted a delivery token into adminToken). Both should
+        // boot the user back to the admin login so tampered tokens can't
+        // keep refreshing the page in a half-broken state.
+        if (auth && (res.status === 401 || res.status === 403)) {
             setToken(null);
-            if (!location.pathname.endsWith('/login.php')) {
-                location.href = cfg.basePath + '/views/admin/login.php';
+            if (!location.pathname.endsWith('/views/admin/login.php')) {
+                location.replace(cfg.basePath + '/views/admin/login.php');
             }
         }
 

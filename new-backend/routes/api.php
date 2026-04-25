@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\Auth\AdminAuthController;
 use App\Http\Controllers\Api\V1\Auth\CustomerAuthController;
+use App\Http\Controllers\Api\V1\Auth\DeliveryAuthController;
 use App\Http\Controllers\Api\V1\Public\ProductController as PublicProductController;
 use App\Http\Controllers\Api\V1\Public\CategoryController as PublicCategoryController;
 use App\Http\Controllers\Api\V1\Public\OrderController as PublicOrderController;
@@ -12,6 +13,8 @@ use App\Http\Controllers\Api\V1\Admin\CategoryController as AdminCategoryControl
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\V1\Admin\UploadController as AdminUploadController;
 use App\Http\Controllers\Api\V1\Admin\AdminController as AdminAccountController;
+use App\Http\Controllers\Api\V1\Admin\DeliveryPersonController as AdminDeliveryPersonController;
+use App\Http\Controllers\Api\V1\Delivery\OrderController as DeliveryOrderController;
 
 Route::prefix('v1')->group(function () {
     Route::get('/', function () {
@@ -28,6 +31,7 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/admin/login', [AdminAuthController::class, 'login']);
     Route::post('auth/customer/register', [CustomerAuthController::class, 'register']);
     Route::post('auth/customer/login', [CustomerAuthController::class, 'login']);
+    Route::post('auth/delivery/login', [DeliveryAuthController::class, 'login']);
 
     // Public email verification link (signed; clicked from mailbox).
     // Named `verification.verify` because Laravel's built-in VerifyEmail
@@ -84,7 +88,30 @@ Route::prefix('v1')->group(function () {
             Route::get('orders/{id}', [AdminOrderController::class, 'show'])->whereNumber('id');
             Route::patch('orders/{id}/status', [AdminOrderController::class, 'updateStatus'])->whereNumber('id');
             Route::patch('orders/{id}/payment-status', [AdminOrderController::class, 'updatePaymentStatus'])->whereNumber('id');
+            Route::patch('orders/{id}/assignee', [AdminOrderController::class, 'assign'])->whereNumber('id');
+
+            // Delivery person CRUD — admin-only.
+            Route::get('delivery-persons', [AdminDeliveryPersonController::class, 'index']);
+            Route::post('delivery-persons', [AdminDeliveryPersonController::class, 'store']);
+            Route::get('delivery-persons/{id}', [AdminDeliveryPersonController::class, 'show'])->whereNumber('id');
+            Route::patch('delivery-persons/{id}', [AdminDeliveryPersonController::class, 'update'])->whereNumber('id');
+            Route::patch('delivery-persons/{id}/toggle-active', [AdminDeliveryPersonController::class, 'toggleActive'])->whereNumber('id');
+            Route::delete('delivery-persons/{id}', [AdminDeliveryPersonController::class, 'destroy'])->whereNumber('id');
 
             Route::post('upload', [AdminUploadController::class, 'store']);
+        });
+
+    // Delivery person (requires a token with the "delivery" ability).
+    // Sanctum's CheckAbilities middleware rejects any token that does
+    // not carry exactly this ability, so admin or customer tokens get
+    // a 403 here even if the URL is hand-typed.
+    Route::middleware(['auth:sanctum', 'abilities:delivery'])
+        ->prefix('delivery')
+        ->group(function () {
+            Route::post('logout', [DeliveryAuthController::class, 'logout']);
+            Route::get('me', [DeliveryAuthController::class, 'me']);
+            Route::get('orders', [DeliveryOrderController::class, 'index']);
+            Route::get('orders/{id}', [DeliveryOrderController::class, 'show'])->whereNumber('id');
+            Route::patch('orders/{id}/status', [DeliveryOrderController::class, 'updateStatus'])->whereNumber('id');
         });
 });

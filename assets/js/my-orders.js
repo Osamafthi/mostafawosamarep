@@ -15,7 +15,15 @@
     const { esc, money, buildPath, toast } = window.UI;
     const Api = window.CustomerApi;
 
-    if (!Api.isLoggedIn()) {
+    // Hard-guard: window.Auth.guardCustomerPage() is added by auth.js
+    // and verifies the customer token against /customer/me before any
+    // UI is revealed (the body stays visibility:hidden until the
+    // server confirms the token actually carries the customer
+    // ability). Falls back to the legacy token-presence redirect if
+    // auth.js failed to load.
+    if (window.Auth && typeof window.Auth.guardCustomerPage === 'function') {
+        if (!window.Auth.guardCustomerPage()) return;
+    } else if (!Api.isLoggedIn()) {
         const here = location.pathname;
         window.location.replace(
             buildPath('/views/customer/login.php') +

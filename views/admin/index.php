@@ -15,8 +15,9 @@ $paginationCompactJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — Products</title>
 <link rel="stylesheet" href="<?= $basePath ?>/assets/css/admin.css?v=<?= $adminCssVersion ?>">
+<style>body[data-guarded]:not(.auth-ready){visibility:hidden}</style>
 </head>
-<body>
+<body data-guarded>
     <div class="layout">
         <aside class="sidebar">
             <div class="sidebar__brand">
@@ -38,6 +39,11 @@ $paginationCompactJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination
                    href="<?= $basePath ?>/views/admin/orders.php">
                     <span class="nav-link__icon">O</span>
                     Orders
+                </a>
+                <a class="nav-link <?= $active === 'delivery' ? 'is-active' : '' ?>"
+                   href="<?= $basePath ?>/views/admin/delivery-persons.php">
+                    <span class="nav-link__icon">D</span>
+                    Delivery
                 </a>
                 <a class="nav-link <?= $active === 'admins' ? 'is-active' : '' ?>"
                    href="<?= $basePath ?>/views/admin/admins.php">

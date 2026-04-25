@@ -6,6 +6,7 @@
  *
  *   {
  *     customer_name, customer_email, customer_phone?, shipping_address,
+ *     customer_latitude?, customer_longitude?,
  *     items: [{ product_id, quantity }]
  *   }
  *
@@ -23,6 +24,11 @@
 
     const root = document.querySelector('[data-checkout-root]');
     if (!root) return;
+
+    // Captured by the "Share my precise location" button. Stays null
+    // unless the customer explicitly grants geolocation; the courier UI
+    // falls back to the text address in that case.
+    const gps = { lat: null, lng: null };
 
     function renderEmpty() {
         root.innerHTML = `
@@ -105,6 +111,15 @@
                         <textarea id="f-address" name="shipping_address" required minlength="5" rows="3" autocomplete="street-address">${address}</textarea>
                     </div>
 
+                    <div class="geo-share" data-geo-share>
+                        <div class="geo-share__copy">
+                            <strong>Help your courier find you</strong>
+                            <span>Share your precise location so the delivery person can navigate straight to your door. Optional.</span>
+                        </div>
+                        <button type="button" class="btn btn--ghost" data-geo-btn>Share my precise location</button>
+                        <div class="geo-share__status" data-geo-status hidden></div>
+                    </div>
+
                     <button type="submit" class="btn btn--primary btn--lg btn--block" data-submit-btn>Place order</button>
                 </div>
 
@@ -153,6 +168,8 @@
         const btn  = root.querySelector('[data-submit-btn]');
         const err  = root.querySelector('[data-form-error]');
 
+        wireGeoShare();
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             err.hidden = true;
@@ -170,6 +187,11 @@
                     quantity:   Number(i.qty) || 1,
                 })),
             };
+
+            if (gps.lat !== null && gps.lng !== null) {
+                payload.customer_latitude  = gps.lat;
+                payload.customer_longitude = gps.lng;
+            }
 
             if (!payload.customer_name || payload.customer_name.length < 2) {
                 return fail('Please enter your full name.');
@@ -200,6 +222,57 @@
                 btn.textContent = 'Place order';
             }
         });
+    }
+
+    function wireGeoShare() {
+        const wrap   = root.querySelector('[data-geo-share]');
+        const btn    = root.querySelector('[data-geo-btn]');
+        const status = root.querySelector('[data-geo-status]');
+        if (!btn || !status) return;
+
+        // Browsers refuse the Geolocation API on insecure origins. Show a
+        // polite hint instead of silently disabling the button.
+        const isSecure = window.isSecureContext
+            || ['localhost', '127.0.0.1'].includes(location.hostname);
+
+        if (!('geolocation' in navigator) || !isSecure) {
+            btn.disabled = true;
+            showStatus('Location sharing requires HTTPS or localhost. The courier will use your address instead.', 'info');
+            return;
+        }
+
+        btn.addEventListener('click', () => {
+            btn.disabled = true;
+            const original = btn.textContent;
+            btn.textContent = 'Locating…';
+            status.hidden = true;
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    gps.lat = +pos.coords.latitude.toFixed(7);
+                    gps.lng = +pos.coords.longitude.toFixed(7);
+                    btn.textContent = 'Update location';
+                    btn.disabled = false;
+                    showStatus('Location shared — the courier will get a Maps link.', 'ok');
+                    if (wrap) wrap.classList.add('is-shared');
+                },
+                (err) => {
+                    btn.textContent = original;
+                    btn.disabled = false;
+                    const msg = err && err.code === 1
+                        ? 'Permission denied. The courier will use your address instead.'
+                        : 'Could not read your location. The courier will use your address instead.';
+                    showStatus(msg, 'info');
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+            );
+        });
+
+        function showStatus(message, kind) {
+            status.textContent = message;
+            status.hidden = false;
+            status.dataset.kind = kind;
+        }
     }
 
     renderForm();

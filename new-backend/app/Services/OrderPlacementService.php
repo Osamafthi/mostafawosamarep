@@ -14,10 +14,14 @@ use Illuminate\Support\Facades\DB;
 
 class OrderPlacementService
 {
+    public function __construct(private DeliveryAssignmentService $assignments)
+    {
+    }
+
     /**
      * Place a new order atomically and return the persisted Order with items/customer loaded.
      *
-     * @param  array{customer_name:string, customer_email:string, customer_phone:?string, shipping_address:string, items: array<int, array{product_id:int, quantity:int}>}  $payload
+     * @param  array{customer_name:string, customer_email:string, customer_phone:?string, shipping_address:string, customer_latitude?:?float, customer_longitude?:?float, items: array<int, array{product_id:int, quantity:int}>}  $payload
      */
     public function place(array $payload, ?Customer $customer = null): Order
     {
@@ -63,11 +67,21 @@ class OrderPlacementService
                 'customer_email' => $payload['customer_email'],
                 'customer_phone' => $payload['customer_phone'] ?? null,
                 'shipping_address' => $payload['shipping_address'],
+                'customer_latitude' => $payload['customer_latitude'] ?? null,
+                'customer_longitude' => $payload['customer_longitude'] ?? null,
                 'subtotal' => round($subtotal, 2),
                 'total' => round($subtotal, 2),
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
             ]);
+
+            // Auto-assign a courier inside the same transaction so the row
+            // lock on `delivery_persons` prevents two simultaneous orders
+            // from picking the same person. Returns null when no active
+            // courier exists — admin will assign manually from the UI.
+            if ($this->assignments->assignFor($order)) {
+                $order->save();
+            }
 
             foreach ($resolvedItems as $line) {
                 /** @var Product $product */
@@ -85,7 +99,7 @@ class OrderPlacementService
                 $product->decrement('stock', $line['quantity']);
             }
 
-            return $order->fresh(['items.product']);
+            return $order->fresh(['items.product', 'deliveryPerson']);
         });
 
         // Stock changed on one or more products — invalidate cached catalog
