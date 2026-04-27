@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\V1;
 
+use App\Support\AssetUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -11,7 +12,7 @@ class ProductImageResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'url' => $this->url,
+            'url' => AssetUrl::absolutize($this->url),
             'sort_order' => (int) $this->sort_order,
         ];
     }

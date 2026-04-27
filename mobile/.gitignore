@@ -1,0 +1,23 @@
+# Flutter
+.dart_tool/
+.packages
+build/
+
+# Android
+android/local.properties
+android/.gradle/
+android/captures/
+android/key.properties
+*.jks
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Runner/GeneratedPluginRegistrant.*
+
+# IDE
+.idea/
+*.iml

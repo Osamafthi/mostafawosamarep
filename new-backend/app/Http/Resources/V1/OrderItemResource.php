@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\V1;
 
+use App\Support\AssetUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,7 +18,7 @@ class OrderItemResource extends JsonResource
             'quantity' => (int) $this->quantity,
             'unit_price' => (float) $this->unit_price,
             'subtotal' => (float) $this->subtotal,
-            'image_url' => $this->whenLoaded('product', fn () => $this->product?->image_url),
+            'image_url' => $this->whenLoaded('product', fn () => AssetUrl::absolutize($this->product?->image_url)),
             'created_at' => optional($this->created_at)->toIso8601String(),
         ];
     }
