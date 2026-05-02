@@ -12,9 +12,13 @@ import '../features/catalog/product_detail_screen.dart';
 import '../features/catalog/search_screen.dart';
 import '../features/checkout/checkout_screen.dart';
 import '../features/checkout/checkout_success_screen.dart';
+import '../features/delivery/delivery_login_screen.dart';
+import '../features/delivery/delivery_order_detail_screen.dart';
+import '../features/delivery/delivery_orders_screen.dart';
 import '../features/shell/main_shell.dart';
 import '../models/order.dart';
 import '../providers/auth_and_api.dart';
+import '../providers/delivery_auth_and_api.dart';
 import '../features/orders/orders_screen.dart';
 import '../features/orders/order_detail_screen.dart';
 import 'go_router_refresh.dart';
@@ -32,16 +36,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final loc = state.matchedLocation;
       final auth = ref.read(authNotifierProvider);
-      if (auth.isLoading) return null;
+      final deliveryAuth = ref.read(deliveryAuthNotifierProvider);
 
-      final user = auth.valueOrNull;
+      if (auth.isLoading || deliveryAuth.isLoading) return null;
+
+      final customer = auth.valueOrNull;
+      final courier = deliveryAuth.valueOrNull;
+
       final loggingIn = loc == '/login' || loc == '/register';
+      final shopperOrders = loc == '/orders' || loc.startsWith('/orders/');
 
-      if ((loc.startsWith('/orders')) && user == null) {
+      if (courier != null) {
+        if (loc.startsWith('/delivery/orders')) return null;
+        if (loc == '/delivery/login') return '/delivery/orders';
+        return '/delivery/orders';
+      }
+
+      if (loc.startsWith('/delivery/orders')) {
+        return '/delivery/login';
+      }
+
+      if (customer == null && shopperOrders) {
         return '/login?redirect=${Uri.encodeComponent(loc)}';
       }
 
-      if (loggingIn && user != null) {
+      if (loggingIn && customer != null) {
         final redir = state.uri.queryParameters['redirect'];
         if (redir != null &&
             redir.startsWith('/') &&
@@ -153,10 +172,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
-        path: '/orders/:id',
+        path: '/delivery/login',
+        builder: (context, state) => const DeliveryLoginScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/delivery/orders',
+        builder: (context, state) => const DeliveryOrdersScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/delivery/orders/:id',
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
-          return OrderDetailScreen(orderId: id);
+          return DeliveryOrderDetailScreen(orderId: id);
         },
       ),
     ],

@@ -36,6 +36,11 @@ class AccountScreen extends ConsumerWidget {
                   onPressed: () => context.push('/register?redirect=/account'),
                   child: const Text('Create account'),
                 ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => context.push('/delivery/login'),
+                  child: const Text('Delivery sign in'),
+                ),
               ],
             );
           }

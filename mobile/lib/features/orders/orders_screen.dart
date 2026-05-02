@@ -15,7 +15,8 @@ const _statuses = <String?>[
   'cancelled',
 ];
 
-const _statusLabels = <String>['All', 'Pending', 'Processing', 'Delivered', 'Cancelled'];
+const _statusLabels =
+    <String>['All', 'Pending', 'Processing', 'Delivered', 'Cancelled'];
 
 const _windows = ['6m', '1y', 'all'];
 const _windowLabels = ['Last 6 months', 'Last year', 'All time'];
@@ -30,29 +31,55 @@ class OrdersScreen extends ConsumerStatefulWidget {
 class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   int _tab = 0;
   String _window = '6m';
+  final _scrollController = ScrollController();
+
   int _page = 1;
   List<Order> _items = [];
   int _lastPage = 1;
   bool _loading = true;
+  bool _loadingMore = false;
   String? _error;
+
+  static const _pageSize = 10;
+  static const _loadMoreExtent = 200.0;
 
   @override
   void initState() {
     super.initState();
-    _fetch();
+    _scrollController.addListener(_onScroll);
+    _reload();
   }
 
-  Future<void> _fetch() async {
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_loadingMore || _loading || _page >= _lastPage || _error != null) {
+      return;
+    }
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - _loadMoreExtent) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _reload() async {
     setState(() {
       _loading = true;
       _error = null;
+      _page = 1;
     });
     try {
       final api = ref.read(apiClientProvider);
       final status = _statuses[_tab];
       final query = <String, dynamic>{
-        'page': _page,
-        'limit': 10,
+        'page': 1,
+        'limit': _pageSize,
         'window': _window,
       };
       if (status != null) query['status'] = status;
@@ -61,8 +88,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       final page = PaginatedOrders.fromJson(Map<String, dynamic>.from(data));
       if (mounted) {
         setState(() {
-          _items = page.items;
+          _items = List<Order>.from(page.items);
           _lastPage = page.lastPage;
+          _page = 1;
           _loading = false;
         });
       }
@@ -76,20 +104,53 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     }
   }
 
+  Future<void> _loadMore() async {
+    if (_loadingMore || _loading || _page >= _lastPage || _error != null) {
+      return;
+    }
+    final nextPage = _page + 1;
+    setState(() => _loadingMore = true);
+    try {
+      final api = ref.read(apiClientProvider);
+      final status = _statuses[_tab];
+      final query = <String, dynamic>{
+        'page': nextPage,
+        'limit': _pageSize,
+        'window': _window,
+      };
+      if (status != null) query['status'] = status;
+      final data = await api.get('/customer/orders', query: query, auth: true);
+      if (data is! Map) throw Exception('Bad response');
+      final page = PaginatedOrders.fromJson(Map<String, dynamic>.from(data));
+      if (mounted) {
+        setState(() {
+          _items.addAll(page.items);
+          _page = nextPage;
+          _lastPage = page.lastPage;
+          _loadingMore = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingMore = false);
+      }
+    }
+  }
+
   void _onTab(int i) {
     setState(() {
       _tab = i;
-      _page = 1;
+      _items = [];
     });
-    _fetch();
+    _reload();
   }
 
   void _onWindow(String w) {
     setState(() {
       _window = w;
-      _page = 1;
+      _items = [];
     });
-    _fetch();
+    _reload();
   }
 
   @override
@@ -142,68 +203,49 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
           Expanded(
             child: _loading && _items.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : _error != null
+                : _error != null && _items.isEmpty
                     ? Center(child: Text(_error!))
                     : _items.isEmpty
                         ? const Center(child: Text('No orders yet'))
                         : RefreshIndicator(
-                            onRefresh: () async {
-                              _page = 1;
-                              await _fetch();
-                            },
-                            child: ListView.separated(
+                            onRefresh: _reload,
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.all(12),
-                              itemCount: _items.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 8),
+                              itemCount:
+                                  _items.length + (_loadingMore ? 1 : 0),
                               itemBuilder: (context, i) {
-                                final o = _items[i];
-                                return Card(
-                                  child: ListTile(
-                                    title: Text(o.orderNumber),
-                                    subtitle: Text(
-                                      '${o.status} · ${o.createdAt ?? ''}',
+                                if (i >= _items.length) {
+                                  return const Padding(
+                                    padding: EdgeInsets.only(
+                                      top: 8,
+                                      bottom: 24,
                                     ),
-                                    trailing: Text(formatMoney(o.total)),
-                                    onTap: () =>
-                                        context.push('/orders/${o.id}'),
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+                                final o = _items[i];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Card(
+                                    child: ListTile(
+                                      title: Text(o.orderNumber),
+                                      subtitle: Text(
+                                        '${o.status} · ${o.createdAt ?? ''}',
+                                      ),
+                                      trailing: Text(formatMoney(o.total)),
+                                      onTap: () =>
+                                          context.push('/orders/${o.id}'),
+                                    ),
                                   ),
                                 );
                               },
                             ),
                           ),
           ),
-          if (_lastPage > 1)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  FilledButton.tonal(
-                    onPressed: _page > 1 && !_loading
-                        ? () {
-                            setState(() => _page--);
-                            _fetch();
-                          }
-                        : null,
-                    child: const Text('Previous'),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('Page $_page / $_lastPage'),
-                  ),
-                  FilledButton.tonal(
-                    onPressed: _page < _lastPage && !_loading
-                        ? () {
-                            setState(() => _page++);
-                            _fetch();
-                          }
-                        : null,
-                    child: const Text('Next'),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

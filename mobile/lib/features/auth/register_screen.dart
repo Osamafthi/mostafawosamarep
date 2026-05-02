@@ -181,6 +181,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 },
                 child: const Text('Already have an account? Sign in'),
               ),
+              TextButton(
+                onPressed: () => context.push('/delivery/login'),
+                child: const Text('Courier sign in'),
+              ),
             ],
           ),
         ),

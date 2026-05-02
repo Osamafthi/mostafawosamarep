@@ -108,6 +108,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 },
                 child: const Text('Create an account'),
               ),
+              TextButton(
+                onPressed: () => context.push('/delivery/login'),
+                child: const Text('Courier sign in'),
+              ),
             ],
           ),
         ),

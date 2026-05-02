@@ -75,7 +75,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Text('Status: ${o.status}'),
-          Text('Payment: ${o.payment_status}'),
+          Text('Payment: ${o.paymentStatus}'),
           if (o.createdAt != null) Text('Placed: ${o.createdAt}'),
           const Divider(),
           Text(o.customerName),
@@ -105,9 +105,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                       ),
                     )
                   : const Icon(Icons.inventory_2_outlined),
-              title: Text(item.product_name),
+              title: Text(item.productName),
               subtitle: Text(
-                '${item.quantity} × ${formatMoney(item.unit_price)}',
+                '${item.quantity} × ${formatMoney(item.unitPrice)}',
               ),
               trailing: Text(formatMoney(item.subtotal)),
             );

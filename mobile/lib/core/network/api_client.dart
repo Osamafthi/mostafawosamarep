@@ -147,4 +147,25 @@ class ApiClient {
       throw ApiException(e.message ?? 'Network error', statusCode: e.response?.statusCode);
     }
   }
+
+  Future<dynamic> patch(
+    String path,
+    dynamic body, {
+    bool auth = false,
+  }) async {
+    try {
+      final res = await _dio.patch<dynamic>(
+        path,
+        data: body,
+        options: Options(
+          extra: {'auth': auth},
+          headers: {'Content-Type': 'application/json'},
+        ),
+      );
+      return _unwrap(res);
+    } on DioException catch (e) {
+      if (e.error is ApiException) throw e.error as ApiException;
+      throw ApiException(e.message ?? 'Network error', statusCode: e.response?.statusCode);
+    }
+  }
 }

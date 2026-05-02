@@ -3,3 +3,4 @@ library;
 
 export 'auth_and_api.dart';
 export 'cart_notifier.dart';
+export 'delivery_auth_and_api.dart';

@@ -73,13 +73,14 @@ return [
     | Public asset base URL (catalog images)
     |--------------------------------------------------------------------------
     |
-    | Relative paths in product image_url (e.g. from seeders) are prefixed with
-    | this value. Defaults to APP_URL. Set PUBLIC_ASSET_URL to your XAMPP origin
-    | when the API runs on :8000 but static files live on :80.
+    | Optional. When empty, FRONTEND_URL is used to derive scheme+host only for
+    | relative paths like /mostafawosama/assets/... (avoids doubling the path).
+    | You may set PUBLIC_ASSET_URL to http://localhost or http://host:port only.
+    | Paths starting with /storage/ always use APP_URL (Laravel public disk).
     |
     */
 
-    'public_asset_url' => env('PUBLIC_ASSET_URL', env('APP_URL', 'http://localhost')),
+    'public_asset_url' => env('PUBLIC_ASSET_URL'),
 
     /*
     |--------------------------------------------------------------------------

@@ -17,43 +17,66 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
+  final _scrollController = ScrollController();
+
   int _page = 1;
   String _q = '';
   List<Product> _items = [];
   int _lastPage = 1;
   bool _loading = false;
+  bool _loadingMore = false;
   String? _error;
+
+  static const _pageSize = 24;
+  static const _loadMoreExtent = 360.0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _q = widget.initialQuery?.trim() ?? '';
     _controller.text = _q;
-    _fetch(reset: true);
+    _reload();
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _fetch({bool reset = false}) async {
-    if (reset) _page = 1;
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_loadingMore || _loading || _page >= _lastPage || _error != null) {
+      return;
+    }
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - _loadMoreExtent) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _reload() async {
     setState(() {
+      _page = 1;
       _loading = true;
       _error = null;
     });
     try {
       final api = ref.read(apiClientProvider);
-      final query = <String, dynamic>{'page': _page, 'limit': 24};
+      final query = <String, dynamic>{
+        'page': 1,
+        'limit': _pageSize,
+      };
       if (_q.isNotEmpty) query['q'] = _q;
       final data = await api.get('/products', query: query);
       if (data is! Map) throw Exception('Bad response');
       final page = PaginatedProducts.fromJson(Map<String, dynamic>.from(data));
       if (mounted) {
         setState(() {
-          _items = page.items;
+          _items = List<Product>.from(page.items);
           _lastPage = page.lastPage;
           _loading = false;
         });
@@ -68,9 +91,41 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
   }
 
+  Future<void> _loadMore() async {
+    if (_loadingMore || _loading || _page >= _lastPage || _error != null) {
+      return;
+    }
+    final nextPage = _page + 1;
+    setState(() => _loadingMore = true);
+    try {
+      final api = ref.read(apiClientProvider);
+      final query = <String, dynamic>{
+        'page': nextPage,
+        'limit': _pageSize,
+      };
+      if (_q.isNotEmpty) query['q'] = _q;
+      final data = await api.get('/products', query: query);
+      if (data is! Map) throw Exception('Bad response');
+      final page =
+          PaginatedProducts.fromJson(Map<String, dynamic>.from(data));
+      if (mounted) {
+        setState(() {
+          _items.addAll(page.items);
+          _page = nextPage;
+          _lastPage = page.lastPage;
+          _loadingMore = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingMore = false);
+      }
+    }
+  }
+
   void _submit() {
     setState(() => _q = _controller.text.trim());
-    _fetch(reset: true);
+    _reload();
   }
 
   @override
@@ -90,6 +145,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
@@ -104,65 +160,57 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Expanded(
             child: _loading && _items.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : _error != null
+                : _error != null && _items.isEmpty
                     ? Center(child: Text(_error!))
                     : _items.isEmpty
                         ? const Center(child: Text('No products found'))
                         : RefreshIndicator(
-                            onRefresh: () => _fetch(reset: true),
-                            child: GridView.builder(
-                              padding: const EdgeInsets.all(12),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                childAspectRatio: 0.58,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                              ),
-                              itemCount: _items.length,
-                              itemBuilder: (context, i) {
-                                final p = _items[i];
-                                return ProductCard(
-                                  product: p,
-                                  onAdd: () => ref
-                                      .read(cartNotifierProvider.notifier)
-                                      .add(p, 1),
-                                );
-                              },
+                            onRefresh: _reload,
+                            child: CustomScrollView(
+                              controller: _scrollController,
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              slivers: [
+                                SliverPadding(
+                                  padding: const EdgeInsets.all(12),
+                                  sliver: SliverGrid(
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      childAspectRatio: 0.58,
+                                      crossAxisSpacing: 12,
+                                      mainAxisSpacing: 12,
+                                    ),
+                                    delegate: SliverChildBuilderDelegate(
+                                      (context, i) {
+                                        final p = _items[i];
+                                        return ProductCard(
+                                          product: p,
+                                          onAdd: () => ref
+                                              .read(cartNotifierProvider
+                                                  .notifier)
+                                              .add(p, 1),
+                                        );
+                                      },
+                                      childCount: _items.length,
+                                    ),
+                                  ),
+                                ),
+                                if (_loadingMore)
+                                  const SliverToBoxAdapter(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        top: 8,
+                                        bottom: 24,
+                                      ),
+                                      child: Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
           ),
-          if (_lastPage > 1)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  FilledButton.tonal(
-                    onPressed: _page > 1 && !_loading
-                        ? () {
-                            setState(() => _page--);
-                            _fetch();
-                          }
-                        : null,
-                    child: const Text('Previous'),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('Page $_page / $_lastPage'),
-                  ),
-                  FilledButton.tonal(
-                    onPressed: _page < _lastPage && !_loading
-                        ? () {
-                            setState(() => _page++);
-                            _fetch();
-                          }
-                        : null,
-                    child: const Text('Next'),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

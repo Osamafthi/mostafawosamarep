@@ -2,12 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_client.dart';
 import '../core/network/api_error.dart';
+import '../core/storage/delivery_token_service.dart';
 import '../core/storage/secure_token_storage.dart';
 import '../core/storage/token_service.dart';
 import '../models/customer.dart';
 
 /// Bumped when the token is cleared remotely (401/403) so [authNotifierProvider] rebuilds.
 final authSessionVersionProvider = StateProvider<int>((ref) => 0);
+
+/// Bumped when the delivery token is cleared or replaced so [deliveryAuthNotifierProvider] rebuilds.
+final deliverySessionVersionProvider = StateProvider<int>((ref) => 0);
 
 final secureStorageProvider = Provider<SecureTokenStorage>(
   (ref) => SecureTokenStorage(),
@@ -16,6 +20,12 @@ final secureStorageProvider = Provider<SecureTokenStorage>(
 /// Overridden in main() after [TokenService.init].
 final tokenServiceProvider = Provider<TokenService>(
   (ref) => throw UnimplementedError('tokenServiceProvider not overridden'),
+);
+
+/// Overridden in main() after [DeliveryTokenService.init].
+final deliveryTokenServiceProvider = Provider<DeliveryTokenService>(
+  (ref) =>
+      throw UnimplementedError('deliveryTokenServiceProvider not overridden'),
 );
 
 final apiClientProvider = Provider<ApiClient>((ref) {
@@ -31,6 +41,11 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 
 final authNotifierProvider =
     AsyncNotifierProvider<AuthNotifier, Customer?>(AuthNotifier.new);
+
+Future<void> _clearDeliverySession(Ref ref) async {
+  await ref.read(deliveryTokenServiceProvider).setToken(null);
+  ref.read(deliverySessionVersionProvider.notifier).state++;
+}
 
 class AuthNotifier extends AsyncNotifier<Customer?> {
   @override
@@ -78,6 +93,7 @@ class AuthNotifier extends AsyncNotifier<Customer?> {
     if (token == null || token.isEmpty) {
       throw ApiException('Unexpected response');
     }
+    await _clearDeliverySession(ref);
     await tokens.setToken(token);
     final cust = data['customer'];
     if (cust is Map) {
@@ -118,6 +134,7 @@ class AuthNotifier extends AsyncNotifier<Customer?> {
     if (token == null || token.isEmpty) {
       throw ApiException('Unexpected response');
     }
+    await _clearDeliverySession(ref);
     await tokens.setToken(token);
     final cust = data['customer'];
     if (cust is Map) {
