@@ -19,6 +19,8 @@ class SyncProductsRequest extends FormRequest
             'products.*.name' => ['required', 'string', 'max:255'],
             'products.*.price' => ['nullable', 'numeric', 'min:0'],
             'products.*.quantity' => ['nullable', 'numeric', 'min:0'],
+            'products.*.category_id' => ['nullable', 'string', 'max:100'],
+            'products.*.category_name' => ['nullable', 'string', 'max:255'],
             'products.*._change' => ['sometimes', 'string', 'in:new,updated'],
         ];
     }
