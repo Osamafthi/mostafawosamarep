@@ -88,6 +88,10 @@ $paginationCompactJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination
                     <div class="stat-card__label">Low Stock (&le;5)</div>
                     <div class="stat-card__value" id="statLow">—</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-card__label">In Stock (&gt;0)</div>
+                    <div class="stat-card__value" id="statInStock">—</div>
+                </div>
             </section>
 
             <section class="toolbar">
@@ -103,6 +107,7 @@ $paginationCompactJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                     </select>
+                    <button id="btnFilterStock" class="btn btn--ghost" data-active="false">In stock only</button>
                 </div>
                 <div class="toolbar__right">
                     <button id="btnRefresh" class="btn btn--ghost">Refresh</button>

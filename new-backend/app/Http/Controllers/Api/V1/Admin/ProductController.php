@@ -44,6 +44,10 @@ class ProductController extends Controller
             $query->where('status', $status);
         }
 
+        if ($request->has('stock_min')) {
+            $query->where('stock', '>=', (int) $request->query('stock_min'));
+        }
+
         $paginator = $query->orderByDesc('id')->paginate($limit, ['*'], 'page', $page);
 
         return ApiResponse::success(
@@ -146,6 +150,7 @@ class ProductController extends Controller
             'inactive_products' => Product::query()->where('status', 'inactive')->count(),
             'total_categories' => \App\Models\Category::query()->count(),
             'low_stock_products' => Product::query()->where('stock', '<=', 5)->count(),
+            'in_stock_products' => Product::query()->where('stock', '>', 0)->count(),
         ];
 
         $revenueStatuses = ['processing', 'shipped', 'delivered'];

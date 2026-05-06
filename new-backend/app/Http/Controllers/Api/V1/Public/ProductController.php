@@ -34,7 +34,7 @@ class ProductController extends Controller
         $cacheable = ($q === '') && ($page <= 3);
 
         $build = function () use ($page, $limit, $q, $categoryId, $status) {
-            $query = Product::query()->with('category');
+            $query = Product::query()->with('category')->where('stock', '>', 0);
 
             if ($q !== '') {
                 $query->where(function ($sub) use ($q) {
@@ -79,7 +79,9 @@ class ProductController extends Controller
             "show:{$id}",
             (int) config('catalog_cache.ttl.product_show', 300),
             function () use ($id) {
-                $product = Product::query()->with(['category', 'images'])->find($id);
+                $product = Product::query()->with(['category', 'images'])
+                    ->where('stock', '>', 0)
+                    ->find($id);
 
                 if (! $product) {
                     return null;

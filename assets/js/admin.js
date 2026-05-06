@@ -9,6 +9,7 @@
         q:       '',
         cat:     '',
         status:  '',
+        stockFilter: false,
         categories: [],
         editing: null,
         imageUrl: null,
@@ -55,10 +56,11 @@
     async function loadStats() {
         try {
             const s = await Api.get('/admin/stats');
-            $('#statTotal').textContent  = s.products.total_products;
-            $('#statActive').textContent = s.products.active_products;
-            $('#statCats').textContent   = s.products.total_categories;
-            $('#statLow').textContent    = s.products.low_stock_products;
+            $('#statTotal').textContent   = s.products.total_products;
+            $('#statActive').textContent  = s.products.active_products;
+            $('#statCats').textContent    = s.products.total_categories;
+            $('#statLow').textContent     = s.products.low_stock_products;
+            $('#statInStock').textContent = s.products.in_stock_products;
         } catch (e) { /* ignore */ }
     }
 
@@ -81,15 +83,17 @@
         body.innerHTML = '<tr><td colspan="7" class="muted">Loading…</td></tr>';
 
         try {
-            const data = await Api.get('/admin/products', {
-                query: {
-                    q:           state.q,
-                    category_id: state.cat,
-                    status:      state.status,
-                    page:        state.page,
-                    limit:       state.limit,
-                }
-            });
+            const query = {
+                q:           state.q,
+                category_id: state.cat,
+                status:      state.status,
+                page:        state.page,
+                limit:       state.limit,
+            };
+            if (state.stockFilter) {
+                query.stock_min = 1;
+            }
+            const data = await Api.get('/admin/products', { query });
             renderProducts(data);
             pager.render(data);
         } catch (e) {
@@ -301,6 +305,14 @@
 
         $('#filterStatus').addEventListener('change', (e) => {
             state.status = e.target.value;
+            state.page = 1;
+            loadProducts();
+        });
+
+        $('#btnFilterStock').addEventListener('click', (e) => {
+            state.stockFilter = !state.stockFilter;
+            e.target.dataset.active = state.stockFilter;
+            e.target.textContent = state.stockFilter ? 'Show all stock' : 'In stock only';
             state.page = 1;
             loadProducts();
         });

@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\V1\Admin\UploadController as AdminUploadController;
 use App\Http\Controllers\Api\V1\Admin\AdminController as AdminAccountController;
 use App\Http\Controllers\Api\V1\Admin\DeliveryPersonController as AdminDeliveryPersonController;
+use App\Http\Controllers\Api\V1\Admin\ProductSyncController;
 use App\Http\Controllers\Api\V1\Delivery\OrderController as DeliveryOrderController;
 
 Route::prefix('v1')->group(function () {
@@ -70,6 +71,7 @@ Route::prefix('v1')->group(function () {
 
             Route::get('products', [AdminProductController::class, 'index']);
             Route::post('products', [AdminProductController::class, 'store']);
+            Route::post('sync/products', [ProductSyncController::class, 'sync']);
             Route::get('products/{id}', [AdminProductController::class, 'show'])->whereNumber('id');
             Route::put('products/{id}', [AdminProductController::class, 'update'])->whereNumber('id');
             Route::delete('products/{id}', [AdminProductController::class, 'destroy'])->whereNumber('id');
