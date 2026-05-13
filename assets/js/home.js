@@ -2,7 +2,7 @@
  * home.js — storefront home page.
  *
  *   1. Load public categories and render the sidebar (+ mobile drawer).
- *   2. Render a static hero slider (banner data is NOT in the backend).
+ *   2. Fetch hero slides from API and render the slider (entire slide clickable).
  *   3. For each category, fetch its first page of products and render a
  *      horizontal product strip with prev/next arrows and a "See all" CTA.
  */
@@ -16,58 +16,80 @@
 
     /* ----------------------- Hero slider ----------------------- */
 
-    const HERO_SLIDES = [
-        {
-            kicker: 'Featured',
-            title: 'Everyday Essentials',
-            desc:  'Top brands across beauty, home and tech. Fresh picks every week.',
-            cta:   'Shop now',
-            href:  '/views/customer/search.php',
-            art:   'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=60',
-        },
-        {
-            kicker: 'Smart Home',
-            title: 'Upgrade Your Living Room',
-            desc:  'Smart TVs, speakers and more — now up to 40% off.',
-            cta:   'Explore deals',
-            href:  '/views/customer/search.php',
-            art:   'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=60',
-        },
-        {
-            kicker: 'Beauty & Care',
-            title: 'Glow Up Essentials',
-            desc:  'Curated skincare, haircare and wellness products.',
-            cta:   'Browse beauty',
-            href:  '/views/customer/search.php',
-            art:   'https://images.unsplash.com/photo-1522335789203-aaa6f4d2b46d?auto=format&fit=crop&w=1200&q=60',
-        },
-    ];
-
+    let heroSlides = [];
     let heroIndex = 0;
     let heroTimer = null;
 
-    function renderHero() {
+    async function fetchHeroSlides() {
+        try {
+            const response = await Api.get('/hero-slides');
+            if (Array.isArray(response)) {
+                return response;
+            }
+            // Fallback to response.data if wrapped
+            return response.data || [];
+        } catch (e) {
+            console.error('Failed to load hero slides:', e);
+            return [];
+        }
+    }
+
+    function renderHeroSlides(slides) {
         const wrap = document.querySelector('[data-hero-slides]');
         const dots = document.querySelector('[data-hero-dots]');
         if (!wrap || !dots) return;
 
-        wrap.innerHTML = HERO_SLIDES.map((s, i) => `
-            <div class="hero-slide ${i === 0 ? 'is-active' : ''}" data-hero-slide>
-                <div class="hero-slide__body">
-                    <span class="hero-slide__kicker">${esc(s.kicker)}</span>
-                    <h2 class="hero-slide__title">${esc(s.title)}</h2>
-                    <p class="hero-slide__desc">${esc(s.desc)}</p>
-                    <a class="hero-slide__cta" href="${esc(buildPath(s.href))}">${esc(s.cta)} &rarr;</a>
-                </div>
-                <div class="hero-slide__art">
-                    <img src="${esc(s.art)}" alt="" loading="${i === 0 ? 'eager' : 'lazy'}" onerror="this.remove();">
-                </div>
-            </div>
-        `).join('');
+        heroSlides = slides;
 
-        dots.innerHTML = HERO_SLIDES.map((_, i) => `
-            <button type="button" class="${i === 0 ? 'is-active' : ''}" data-hero-go="${i}" aria-label="Slide ${i + 1}"></button>
-        `).join('');
+        if (slides.length === 0) {
+            // Fallback: show a single default slide if no slides configured
+            wrap.innerHTML = `
+                <div class="hero-slide is-active" data-hero-slide data-href="${esc(buildPath('/views/customer/search.php'))}">
+                    <div class="hero-slide__body">
+                        <span class="hero-slide__kicker">Welcome</span>
+                        <h2 class="hero-slide__title">Discover Amazing Deals</h2>
+                        <p class="hero-slide__desc">Shop our latest collection of products at unbeatable prices.</p>
+                        <a class="hero-slide__cta" href="${esc(buildPath('/views/customer/search.php'))}">Shop now &rarr;</a>
+                    </div>
+                    <div class="hero-slide__art">
+                        <img src="${esc(buildPath('/assets/images/hero-default.jpg'))}" alt="" loading="eager" onerror="this.remove();">
+                    </div>
+                </div>
+            `;
+            dots.innerHTML = '<button type="button" class="is-active" data-hero-go="0" aria-label="Slide 1"></button>';
+        } else {
+            wrap.innerHTML = slides.map((s, i) => `
+                <div class="hero-slide ${i === 0 ? 'is-active' : ''}" data-hero-slide data-href="${esc(buildPath(s.link_url || '/views/customer/search.php'))}">
+                    <div class="hero-slide__body">
+                        <span class="hero-slide__kicker">${esc(s.subtitle || 'Featured')}</span>
+                        <h2 class="hero-slide__title">${esc(s.title)}</h2>
+                        <p class="hero-slide__desc">${esc(s.description || '')}</p>
+                        <a class="hero-slide__cta" href="${esc(buildPath(s.link_url || '/views/customer/search.php'))}">${esc(s.cta_text || 'Shop now')} &rarr;</a>
+                    </div>
+                    <div class="hero-slide__art">
+                        <img src="${esc(s.image_url)}" alt="" loading="${i === 0 ? 'eager' : 'lazy'}" onerror="this.remove();">
+                    </div>
+                </div>
+            `).join('');
+
+            dots.innerHTML = slides.map((_, i) => `
+                <button type="button" class="${i === 0 ? 'is-active' : ''}" data-hero-go="${i}" aria-label="Slide ${i + 1}"></button>
+            `).join('');
+        }
+
+        // Add click handler to entire slide (make it clickable)
+        wrap.querySelectorAll('[data-hero-slide]').forEach((slide, i) => {
+            slide.addEventListener('click', (e) => {
+                // Don't navigate if clicking on the CTA button (let it handle its own click)
+                if (e.target.closest('.hero-slide__cta')) {
+                    return;
+                }
+                const href = slide.dataset.href;
+                if (href) {
+                    window.location.href = href;
+                }
+            });
+        });
 
         dots.querySelectorAll('[data-hero-go]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -88,6 +110,11 @@
         restartHeroTimer();
     }
 
+    async function renderHero() {
+        const slides = await fetchHeroSlides();
+        renderHeroSlides(slides);
+    }
+
     function goHero(idx) {
         const slides = document.querySelectorAll('[data-hero-slide]');
         const dots = document.querySelectorAll('[data-hero-go]');
@@ -100,7 +127,9 @@
 
     function restartHeroTimer() {
         if (heroTimer) clearInterval(heroTimer);
-        heroTimer = setInterval(() => goHero(heroIndex + 1), 6000);
+        if (heroSlides.length > 1) {
+            heroTimer = setInterval(() => goHero(heroIndex + 1), 6000);
+        }
     }
 
     /* ----------------------- Categories sidebar ----------------------- */

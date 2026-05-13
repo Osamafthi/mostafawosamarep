@@ -38,8 +38,17 @@ $adminsJsVersion  = file_exists(__DIR__ . '/../../assets/js/admins.js')   ? (str
                 <a class="nav-link is-active" href="<?= $basePath ?>/views/admin/admins.php">
                     <span class="nav-link__icon">A</span> Admins
                 </a>
+                <a class="nav-link" href="<?= $basePath ?>/views/admin/hero-slides.php">
+                    <span class="nav-link__icon">H</span> Hero Slides
+                </a>
+                <a class="nav-link" href="<?= $basePath ?>/views/admin/featured-offers.php">
+                    <span class="nav-link__icon">F</span> Featured Offers
+                </a>
             </nav>
             <div class="sidebar__foot">
+                <a href="<?= $basePath ?>/views/customer/home.php" target="_blank" style="display:block;padding:10px 14px;background:#f5f5f5;border-radius:8px;margin-bottom:12px;text-decoration:none;color:#333;font-size:13px;text-align:center;">
+                    View Store &#8599;
+                </a>
                 <div class="admin-chip">
                     <div class="admin-chip__avatar" id="adminAvatar">A</div>
                     <div>
@@ -141,6 +150,7 @@ $adminsJsVersion  = file_exists(__DIR__ . '/../../assets/js/admins.js')   ? (str
     </script>
     <script src="<?= $basePath ?>/assets/js/api.js?v=<?= $apiJsVersion ?>"></script>
     <script src="<?= $basePath ?>/assets/js/auth.js?v=<?= $authJsVersion ?>"></script>
+    <script src="<?= $basePath ?>/assets/js/admin-preview-link.js?v=<?= $authJsVersion ?>"></script>
     <script src="<?= $basePath ?>/assets/js/admins.js?v=<?= $adminsJsVersion ?>"></script>
 </body>
 </html>

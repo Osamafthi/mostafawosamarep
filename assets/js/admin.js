@@ -167,6 +167,7 @@
 
     function resetForm() {
         $('#fId').value          = '';
+        $('#fIdDisplay').value   = '';
         $('#fName').value        = '';
         $('#fDescription').value = '';
         $('#fPrice').value       = '';
@@ -190,6 +191,7 @@
             resetForm();
             state.editing = p.id;
             $('#fId').value          = p.id;
+            $('#fIdDisplay').value   = p.id;
             $('#fName').value        = p.name;
             $('#fDescription').value = p.description || '';
             $('#fPrice').value       = p.price;

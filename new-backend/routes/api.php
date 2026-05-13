@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\V1\Auth\DeliveryAuthController;
 use App\Http\Controllers\Api\V1\Public\ProductController as PublicProductController;
 use App\Http\Controllers\Api\V1\Public\CategoryController as PublicCategoryController;
 use App\Http\Controllers\Api\V1\Public\OrderController as PublicOrderController;
+use App\Http\Controllers\Api\V1\Public\HeroSlideController as PublicHeroSlideController;
+use App\Http\Controllers\Api\V1\Public\OfferController as PublicOfferController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\V1\Admin\CategoryController as AdminCategoryController;
@@ -15,6 +17,8 @@ use App\Http\Controllers\Api\V1\Admin\UploadController as AdminUploadController;
 use App\Http\Controllers\Api\V1\Admin\AdminController as AdminAccountController;
 use App\Http\Controllers\Api\V1\Admin\DeliveryPersonController as AdminDeliveryPersonController;
 use App\Http\Controllers\Api\V1\Admin\ProductSyncController;
+use App\Http\Controllers\Api\V1\Admin\HeroSlideController as AdminHeroSlideController;
+use App\Http\Controllers\Api\V1\Admin\FeaturedOfferController as AdminFeaturedOfferController;
 use App\Http\Controllers\Api\V1\Delivery\OrderController as DeliveryOrderController;
 
 Route::prefix('v1')->group(function () {
@@ -45,6 +49,11 @@ Route::prefix('v1')->group(function () {
     Route::get('products', [PublicProductController::class, 'index']);
     Route::get('products/{id}', [PublicProductController::class, 'show'])->whereNumber('id');
     Route::get('categories', [PublicCategoryController::class, 'index']);
+
+    // Public hero slides and offers
+    Route::get('hero-slides', [PublicHeroSlideController::class, 'index']);
+    Route::get('offers/best', [PublicOfferController::class, 'best']);
+    Route::get('offers/featured', [PublicOfferController::class, 'featured']);
 
     // Public checkout (guest or authenticated customer)
     Route::post('orders', [PublicOrderController::class, 'store']);
@@ -101,6 +110,19 @@ Route::prefix('v1')->group(function () {
             Route::delete('delivery-persons/{id}', [AdminDeliveryPersonController::class, 'destroy'])->whereNumber('id');
 
             Route::post('upload', [AdminUploadController::class, 'store']);
+
+            // Hero slides management
+            Route::get('hero-slides', [AdminHeroSlideController::class, 'index']);
+            Route::post('hero-slides', [AdminHeroSlideController::class, 'store']);
+            Route::put('hero-slides/{id}', [AdminHeroSlideController::class, 'update'])->whereNumber('id');
+            Route::delete('hero-slides/{id}', [AdminHeroSlideController::class, 'destroy'])->whereNumber('id');
+
+            // Featured offers management
+            Route::get('featured-offers', [AdminFeaturedOfferController::class, 'index']);
+            Route::post('featured-offers', [AdminFeaturedOfferController::class, 'store']);
+            Route::put('featured-offers/{id}', [AdminFeaturedOfferController::class, 'update'])->whereNumber('id');
+            Route::delete('featured-offers/{id}', [AdminFeaturedOfferController::class, 'destroy'])->whereNumber('id');
+            Route::post('featured-offers/{id}/replace', [AdminFeaturedOfferController::class, 'replace'])->whereNumber('id');
         });
 
     // Delivery person (requires a token with the "delivery" ability).

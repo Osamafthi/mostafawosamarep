@@ -1,19 +1,16 @@
 <?php
 $basePath = '/mostafawosama';
-$active   = 'products';
+$active   = 'hero-slides';
 $adminCssVersion = file_exists(__DIR__ . '/../../assets/css/admin.css') ? (string) filemtime(__DIR__ . '/../../assets/css/admin.css') : '1';
 $apiJsVersion    = file_exists(__DIR__ . '/../../assets/js/api.js') ? (string) filemtime(__DIR__ . '/../../assets/js/api.js') : '1';
 $authJsVersion   = file_exists(__DIR__ . '/../../assets/js/auth.js') ? (string) filemtime(__DIR__ . '/../../assets/js/auth.js') : '1';
-$adminJsVersion  = file_exists(__DIR__ . '/../../assets/js/admin.js') ? (string) filemtime(__DIR__ . '/../../assets/js/admin.js') : '1';
-$paginationJsVersion        = file_exists(__DIR__ . '/../../assets/js/pagination.js')          ? (string) filemtime(__DIR__ . '/../../assets/js/pagination.js')          : '1';
-$paginationCompactJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination-compact.js')  ? (string) filemtime(__DIR__ . '/../../assets/js/pagination-compact.js')  : '1';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Products</title>
+<title>Admin — Hero Slides</title>
 <link rel="stylesheet" href="<?= $basePath ?>/assets/css/admin.css?v=<?= $adminCssVersion ?>">
 <style>body[data-guarded]:not(.auth-ready){visibility:hidden}</style>
 </head>
@@ -78,52 +75,18 @@ $paginationCompactJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination
         <main class="main">
             <header class="topbar">
                 <div>
-                    <h1>Products</h1>
-                    <p class="topbar__sub">Manage catalog, pricing, and stock</p>
+                    <h1>Hero Slides</h1>
+                    <p class="topbar__sub">Manage homepage banner slides</p>
                 </div>
-                <button id="btnNewProduct" class="btn btn--primary">+ New Product</button>
+                <button id="btnNewSlide" class="btn btn--primary">+ New Slide</button>
             </header>
-
-            <section class="stats">
-                <div class="stat-card">
-                    <div class="stat-card__label">Total Products</div>
-                    <div class="stat-card__value" id="statTotal">—</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card__label">Active</div>
-                    <div class="stat-card__value" id="statActive">—</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card__label">Categories</div>
-                    <div class="stat-card__value" id="statCats">—</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card__label">Low Stock (&le;5)</div>
-                    <div class="stat-card__value" id="statLow">—</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card__label">In Stock (&gt;0)</div>
-                    <div class="stat-card__value" id="statInStock">—</div>
-                </div>
-            </section>
 
             <section class="toolbar">
                 <div class="toolbar__left">
-                    <div class="search">
-                        <input id="searchInput" type="search" placeholder="Search by name or description…">
-                    </div>
-                    <select id="filterCategory" class="select">
-                        <option value="">All categories</option>
-                    </select>
-                    <select id="filterStatus" class="select">
-                        <option value="">All status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                    </select>
-                    <button id="btnFilterStock" class="btn btn--ghost" data-active="false">In stock only</button>
+                    <button id="btnRefresh" class="btn btn--ghost">Refresh</button>
                 </div>
                 <div class="toolbar__right">
-                    <button id="btnRefresh" class="btn btn--ghost">Refresh</button>
+                    <span id="slideCount" class="muted">Loading...</span>
                 </div>
             </section>
 
@@ -131,87 +94,81 @@ $paginationCompactJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination
                 <table class="table">
                     <thead>
                         <tr>
-                            <th style="width:72px;">Image</th>
-                            <th>Name</th>
-                            <th>Category</th>
-                            <th style="text-align:right;">Price</th>
-                            <th style="text-align:right;">Stock</th>
-                            <th>Status</th>
-                            <th style="width:140px;"></th>
+                            <th style="width:100px;">Preview</th>
+                            <th>Title / Subtitle</th>
+                            <th>Link</th>
+                            <th style="width:100px;">Order</th>
+                            <th style="width:100px;">Status</th>
+                            <th style="width:180px;"></th>
                         </tr>
                     </thead>
-                    <tbody id="productRows">
-                        <tr><td colspan="7" class="muted">Loading…</td></tr>
+                    <tbody id="slideRows">
+                        <tr><td colspan="6" class="muted">Loading...</td></tr>
                     </tbody>
                 </table>
-                <div class="pagination" id="pagination"></div>
             </section>
         </main>
     </div>
 
-    <!-- Product modal -->
-    <div id="productModal" class="modal" hidden>
+    <!-- Slide modal -->
+    <div id="slideModal" class="modal" hidden>
         <div class="modal__backdrop" data-close></div>
         <div class="modal__dialog">
             <header class="modal__header">
-                <h2 id="modalTitle">New Product</h2>
+                <h2 id="modalTitle">New Hero Slide</h2>
                 <button class="icon-btn" data-close aria-label="Close">&times;</button>
             </header>
-            <form id="productForm" class="modal__body form-grid">
+            <form id="slideForm" class="modal__body form-grid">
                 <input type="hidden" id="fId">
                 <div class="form-row form-row--full">
                     <label class="field">
-                        <span class="field__label">Product ID (for reference)</span>
-                        <input type="text" id="fIdDisplay" readonly style="background:#f5f5f5;border:1px solid #e5e5ea;color:#6b7280;cursor:not-allowed;">
+                        <span class="field__label">Title <span style="color:#b00020">*</span></span>
+                        <input type="text" id="fTitle" required maxlength="200" placeholder="e.g., Summer Sale">
                     </label>
                 </div>
                 <div class="form-row form-row--full">
                     <label class="field">
-                        <span class="field__label">Name</span>
-                        <input type="text" id="fName" required maxlength="200">
+                        <span class="field__label">Subtitle / Kicker</span>
+                        <input type="text" id="fSubtitle" maxlength="255" placeholder="e.g., Limited Time Offer">
                     </label>
                 </div>
                 <div class="form-row form-row--full">
                     <label class="field">
                         <span class="field__label">Description</span>
-                        <textarea id="fDescription" rows="3"></textarea>
+                        <textarea id="fDescription" rows="2" placeholder="Brief description for the slide"></textarea>
+                    </label>
+                </div>
+                <div class="form-row form-row--full">
+                    <label class="field">
+                        <span class="field__label">Image URL <span style="color:#b00020">*</span></span>
+                        <input type="url" id="fImageUrl" required maxlength="500" placeholder="https://example.com/image.jpg">
                     </label>
                 </div>
                 <div class="form-row">
                     <label class="field">
-                        <span class="field__label">Price</span>
-                        <input type="number" id="fPrice" required min="0" step="0.01">
+                        <span class="field__label">Link URL</span>
+                        <input type="text" id="fLinkUrl" maxlength="500" value="/views/customer/search.php">
                     </label>
                     <label class="field">
-                        <span class="field__label">Discount price</span>
-                        <input type="number" id="fDiscount" min="0" step="0.01">
+                        <span class="field__label">CTA Text</span>
+                        <input type="text" id="fCtaText" maxlength="50" value="Shop now">
                     </label>
                 </div>
                 <div class="form-row">
                     <label class="field">
-                        <span class="field__label">Stock</span>
-                        <input type="number" id="fStock" required min="0" step="1">
+                        <span class="field__label">Sort Order</span>
+                        <input type="number" id="fSortOrder" min="0" value="0">
                     </label>
-                    <label class="field">
-                        <span class="field__label">Category</span>
-                        <select id="fCategory" required></select>
-                    </label>
-                </div>
-                <div class="form-row">
                     <label class="field">
                         <span class="field__label">Status</span>
                         <select id="fStatus">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
+                            <option value="1">Active</option>
+                            <option value="0">Inactive</option>
                         </select>
                     </label>
-                    <div class="field">
-                        <span class="field__label">Product image</span>
-                        <div class="upload-row">
-                            <input type="file" id="fImage" accept="image/*">
-                            <div id="imgPreview" class="img-preview"></div>
-                        </div>
-                    </div>
+                </div>
+                <div class="form-row form-row--full">
+                    <div id="imgPreview" style="width:100%;height:150px;background:#f5f5f5;border-radius:8px;background-size:cover;background-position:center;display:none;"></div>
                 </div>
 
                 <div id="modalError" class="form-error" hidden></div>
@@ -228,16 +185,12 @@ $paginationCompactJsVersion = file_exists(__DIR__ . '/../../assets/js/pagination
     <script>
         window.APP_CONFIG = {
             basePath: '<?= $basePath ?>',
-            // The Laravel API runs on its own dev server (php artisan serve) because
-            // Laravel 13 requires PHP 8.3+ while XAMPP here ships PHP 8.2.x.
             apiBase:  'http://localhost:8000/api/v1'
         };
     </script>
     <script src="<?= $basePath ?>/assets/js/api.js?v=<?= $apiJsVersion ?>"></script>
     <script src="<?= $basePath ?>/assets/js/auth.js?v=<?= $authJsVersion ?>"></script>
-    <script src="<?= $basePath ?>/assets/js/pagination.js?v=<?= $paginationJsVersion ?>"></script>
-    <script src="<?= $basePath ?>/assets/js/pagination-compact.js?v=<?= $paginationCompactJsVersion ?>"></script>
-    <script src="<?= $basePath ?>/assets/js/admin-preview-link.js?v=<?= $adminJsVersion ?>"></script>
-    <script src="<?= $basePath ?>/assets/js/admin.js?v=<?= $adminJsVersion ?>"></script>
+    <script src="<?= $basePath ?>/assets/js/admin-preview-link.js?v=<?= $apiJsVersion ?>"></script>
+    <script src="<?= $basePath ?>/assets/js/hero-slides.js?v=<?= time() ?>"></script>
 </body>
 </html>
