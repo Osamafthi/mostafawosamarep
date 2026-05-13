@@ -11,3 +11,4 @@ test-images.php
 .cursor/
 *.swp
 *.swo
+*.env
