@@ -97,6 +97,10 @@ class OrderPlacementService
                 ]);
 
                 $product->decrement('stock', $line['quantity']);
+
+                // Reload and save to trigger auto-status update based on new stock level
+                $product->refresh();
+                $product->save();
             }
 
             return $order->fresh(['items.product', 'deliveryPerson']);

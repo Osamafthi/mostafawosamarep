@@ -48,6 +48,11 @@ class Product extends Model
                     $product->exists ? $product->id : null
                 );
             }
+
+            // Auto-update status based on stock quantity
+            if ($product->isDirty('stock') || $product->stock === 0) {
+                $product->status = ((int) $product->stock > 0) ? 'active' : 'inactive';
+            }
         });
     }
 
